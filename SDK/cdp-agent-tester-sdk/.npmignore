@@ -1,0 +1,47 @@
+# Source files
+src/
+*.test.ts
+*.spec.ts
+
+# Config files
+tsconfig.json
+.eslintrc.json
+.prettierrc
+.prettierignore
+
+# Development
+node_modules/
+coverage/
+.nyc_output/
+
+# Git
+.git/
+.gitignore
+.github/
+
+# Docs that should stay in repo but not in package
+examples/
+*.log
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Keep these
+!dist/
+!README.md
+!LICENSE
+!PUBLISHING_GUIDE.md
+

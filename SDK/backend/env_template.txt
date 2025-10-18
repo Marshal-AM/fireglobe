@@ -1,0 +1,4 @@
+# ASI:One API Key (Required)
+# Get your API key from https://asi1.ai
+ASI_ONE_API_KEY=your_asi_one_api_key_here
+

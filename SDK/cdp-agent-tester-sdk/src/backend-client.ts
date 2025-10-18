@@ -1,0 +1,159 @@
+/**
+ * Client for interacting with the PersonalityGenerator backend
+ */
+
+import axios, { AxiosInstance } from "axios";
+import { Personality, EvaluationResult } from "./types";
+
+export interface BackendClientConfig {
+  baseUrl: string;
+  timeout?: number;
+}
+
+export class BackendClient {
+  private client: AxiosInstance;
+
+  constructor(config: BackendClientConfig) {
+    this.client = axios.create({
+      baseURL: config.baseUrl,
+      timeout: config.timeout || 30000,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  }
+
+  /**
+   * Generate personalities for a given agent description and capabilities
+   */
+  async generatePersonalities(
+    agentDescription: string,
+    agentCapabilities: string,
+    numPersonalities: number
+  ): Promise<Personality[]> {
+    try {
+      const response = await this.client.post<{
+        success: boolean;
+        personalities: Personality[];
+      }>("/generate-personalities", {
+        agent_description: agentDescription,
+        agent_capabilities: agentCapabilities,
+        num_personalities: numPersonalities,
+      });
+
+      if (!response.data.success) {
+        throw new Error("Failed to generate personalities");
+      }
+
+      return response.data.personalities;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(
+          `Backend error: ${error.response?.data?.detail || error.message}`
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Evaluate a conversation using Python AI backend
+   */
+  async evaluateConversation(
+    personalityName: string,
+    personality: string,
+    description: string,
+    messages: Array<{ role: string; content: string }>
+  ): Promise<EvaluationResult> {
+    try {
+      const response = await this.client.post<EvaluationResult>(
+        "/evaluate-conversation",
+        {
+          personality_name: personalityName,
+          personality,
+          description,
+          messages,
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(
+          `Evaluation error: ${error.response?.data?.detail || error.message}`
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Store a conversation in the backend
+   */
+  async storeConversation(
+    conversationId: string,
+    personalityName: string,
+    messages: Array<{ role: string; content: string; timestamp: Date }>
+  ): Promise<void> {
+    try {
+      await this.client.post("/store-conversation", {
+        conversation_id: conversationId,
+        personality_name: personalityName,
+        messages: messages.map((m) => ({
+          ...m,
+          timestamp: m.timestamp.toISOString(),
+        })),
+      });
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(
+          `Storage error: ${error.response?.data?.detail || error.message}`
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Generate a natural message from a personality
+   */
+  async generatePersonalityMessage(
+    personality: Personality,
+    previousMessages: any[],
+    isInitial: boolean,
+    agentDescription: string
+  ): Promise<string> {
+    try {
+      const response = await this.client.post<{ message: string }>(
+        "/generate-personality-message",
+        {
+          personality,
+          previous_messages: previousMessages,
+          is_initial: isInitial,
+          agent_description: agentDescription,
+        }
+      );
+      return response.data.message;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(
+          `Message generation error: ${error.response?.data?.detail || error.message}`
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Check if backend is healthy
+   */
+  async healthCheck(): Promise<boolean> {
+    try {
+      const response = await this.client.get("/health");
+      return response.data.status === "healthy";
+    } catch {
+      return false;
+    }
+  }
+}
+
