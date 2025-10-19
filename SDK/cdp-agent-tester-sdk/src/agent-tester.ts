@@ -29,7 +29,7 @@ export class AgentTester {
       numPersonalities: config.numPersonalities || 5,
       backendUrl: config.backendUrl || 
                   process.env.CDP_TESTER_BACKEND_URL || 
-                  "https://fireglobe-backend.onrender.com",
+                  "http://127.0.0.1:8000",
       saveConversations: config.saveConversations ?? true,
       conversationOutputPath: config.conversationOutputPath || "./conversations",
       realTimeLogging: config.realTimeLogging ?? true,
@@ -237,6 +237,54 @@ export class AgentTester {
           content: agentMessage.content,
         });
 
+        // Check for transaction hash in agent response
+        const txInfo = this.extractTransactionFromMessage(agentMessage.content);
+        if (txInfo) {
+          console.log(`🔍 Transaction detected in agent response: ${txInfo.txHash}`);
+          console.log(`⛓️  Chain ID: ${txInfo.chainId}`);
+          
+          // Send transaction analysis request to backend
+          try {
+            await this.backendClient.analyzeAgentTransaction(
+              conversationId,
+              personality.name,
+              conversation.messages,
+              txInfo.txHash,
+              txInfo.chainId
+            );
+            console.log(`✅ Transaction analysis request sent to backend`);
+            
+            // Wait for analysis to be available (poll every 2 seconds, no timeout)
+            console.log(`⏳ Waiting for transaction analysis...`);
+            let analysisReceived = false;
+            
+            while (!analysisReceived) {
+              await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+              
+              try {
+                const analysisResult = await this.backendClient.getTransactionAnalysis(txInfo.txHash);
+                if (analysisResult.success && analysisResult.analysis) {
+                  console.log(`\n📊 TRANSACTION ANALYSIS:`);
+                  console.log(`🔗 Transaction: ${txInfo.txHash}`);
+                  console.log(`⛓️  Chain: ${txInfo.chainId}`);
+                  console.log(`📝 Analysis: ${analysisResult.analysis}`);
+                  console.log(`⏰ Timestamp: ${analysisResult.timestamp}\n`);
+                  analysisReceived = true;
+                }
+              } catch (error) {
+                // Continue polling
+              }
+            }
+            
+            // Add 10-second delay after displaying analysis
+            console.log(`⏳ Waiting 10 seconds before next message...`);
+            await new Promise(resolve => setTimeout(resolve, 10000));
+            
+          } catch (error) {
+            console.error(`❌ Failed to send transaction analysis request: ${error}`);
+          }
+        }
+
         // Log in real-time
         if (this.logger && this.config.realTimeLogging) {
           await this.logger.logMessage(conversationId, agentMessage);
@@ -275,6 +323,47 @@ export class AgentTester {
       conversation.endTime = new Date();
       throw error;
     }
+  }
+
+  /**
+   * Extract transaction hash and chain ID from a message
+   */
+  private extractTransactionFromMessage(message: string): { txHash: string; chainId: string } | null {
+    // Look for transaction hash pattern (0x followed by 64 hex characters)
+    const txPattern = /0x[a-fA-F0-9]{64}/;
+    const txMatch = message.match(txPattern);
+    
+    if (!txMatch) {
+      return null;
+    }
+    
+    const txHash = txMatch[0];
+    
+    // Try to detect chain from context
+    const messageLower = message.toLowerCase();
+    let chainId = "84532"; // Default to Base Sepolia for testing
+    
+    // Check for explicit chain mentions (order matters - check specific before general)
+    if (messageLower.includes("base-sepolia") || messageLower.includes("base sepolia")) {
+      chainId = "84532";
+    } else if (messageLower.includes("base mainnet") || (messageLower.includes("base") && messageLower.includes("mainnet"))) {
+      chainId = "8453";
+    } else if (messageLower.includes("base")) {
+      chainId = "84532"; // Default base to sepolia testnet
+    } else if (messageLower.includes("ethereum mainnet") || (messageLower.includes("ethereum") && messageLower.includes("mainnet"))) {
+      chainId = "1";
+    } else if (messageLower.includes("polygon")) {
+      chainId = "137";
+    } else if (messageLower.includes("arbitrum")) {
+      chainId = "42161";
+    } else if (messageLower.includes("optimism")) {
+      chainId = "10";
+    }
+    
+    return {
+      txHash,
+      chainId
+    };
   }
 
   /**

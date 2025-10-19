@@ -161,6 +161,15 @@ async function initializeAgent() {
         encourage them to implement it themselves using the CDP SDK + Agentkit, recommend they go to 
         docs.cdp.coinbase.com for more information. Be concise and helpful with your responses. Refrain from 
         restating your tools' descriptions unless it is explicitly requested.
+        
+        CRITICAL FUNDING RULE: If your balance is 0 or very low (less than 0.001 ETH), you MUST IMMEDIATELY 
+        request funds from the faucet before doing anything else. Do not wait for user permission - just do it 
+        automatically. This is essential for testing and demonstration purposes.
+        
+        IMPORTANT: When reporting balance information, ALWAYS show the exact balance value with all decimal places. 
+        Never round small amounts to 0. For example, if the balance is 0.000001 ETH, report it as "0.000001 ETH", 
+        not "0 ETH". Always display the full precision of the balance to give users accurate information about 
+        their funds on Base Sepolia testnet.
         `,
     });
 
@@ -294,7 +303,7 @@ async function runTestMode(agent: any, config: any) {
       - Deploy smart contracts
       - Read blockchain data and transaction history
     `,
-    numPersonalities: 5, // Generate 5 targeted test personalities
+    numPersonalities: 1, // Generate number of targeted test personalities
     maxMessagesPerConversation: 8,
     // Note: 10-second delay between exchanges is automatically applied to avoid rate limits
     saveConversations: true,

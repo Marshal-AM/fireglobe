@@ -143,5 +143,77 @@ export class BackendClient {
       throw error;
     }
   }
+
+  /**
+   * Send transaction analysis request to backend
+   */
+  async analyzeAgentTransaction(
+    conversationId: string,
+    personalityName: string,
+    conversationMessages: Array<{ role: string; content: string; timestamp: Date }>,
+    transactionHash: string,
+    chainId: string
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await this.client.post<{
+        success: boolean;
+        message: string;
+        timestamp: string;
+      }>("/rest/analyze-agent-transaction", {
+        conversation_id: conversationId,
+        personality_name: personalityName,
+        conversation_messages: conversationMessages.map((m) => ({
+          ...m,
+          timestamp: m.timestamp.toISOString(),
+        })),
+        transaction_hash: transactionHash,
+        chain_id: chainId,
+      });
+
+      return {
+        success: response.data.success,
+        message: response.data.message,
+      };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(
+          `Transaction analysis error: ${error.response?.data?.detail || error.message}`
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieve transaction analysis from backend
+   */
+  async getTransactionAnalysis(
+    transactionHash: string
+  ): Promise<{ success: boolean; analysis?: string; timestamp?: string; message: string }> {
+    try {
+      const response = await this.client.post<{
+        success: boolean;
+        analysis?: string;
+        timestamp?: string;
+        message: string;
+      }>("/rest/get-transaction-analysis", {
+        transaction_hash: transactionHash,
+      });
+
+      return {
+        success: response.data.success,
+        analysis: response.data.analysis,
+        timestamp: response.data.timestamp,
+        message: response.data.message,
+      };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(
+          `Transaction analysis retrieval error: ${error.response?.data?.detail || error.message}`
+        );
+      }
+      throw error;
+    }
+  }
 }
 

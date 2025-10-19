@@ -3,6 +3,7 @@ uvicorn
 python-dotenv
 requests
 pydantic
+httpx
 
 # Optional: uAgents for Agentverse registration
 # Uncomment to enable uAgents integration
