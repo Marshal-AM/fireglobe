@@ -29,7 +29,7 @@ export class AgentTester {
       numPersonalities: config.numPersonalities || 5,
       backendUrl: config.backendUrl || 
                   process.env.CDP_TESTER_BACKEND_URL || 
-                  "http://127.0.0.1:8000",
+                  "https://backend-739298578243.us-central1.run.app",
       saveConversations: config.saveConversations ?? true,
       conversationOutputPath: config.conversationOutputPath || "./conversations",
       realTimeLogging: config.realTimeLogging ?? true,
@@ -269,6 +269,20 @@ export class AgentTester {
                   console.log(`⛓️  Chain: ${txInfo.chainId}`);
                   console.log(`📝 Analysis: ${analysisResult.analysis}`);
                   console.log(`⏰ Timestamp: ${analysisResult.timestamp}\n`);
+                  
+                  // Add transaction analysis to the conversation messages
+                  conversation.messages.push({
+                    role: "agent",
+                    content: `[Transaction Analysis for ${txInfo.txHash}]`,
+                    timestamp: new Date(analysisResult.timestamp || Date.now()),
+                    transaction_analysis: {
+                      transaction_hash: txInfo.txHash,
+                      chain: txInfo.chainId,
+                      analysis: analysisResult.analysis,
+                      timestamp: analysisResult.timestamp || new Date().toISOString(),
+                    },
+                  } as any);
+                  
                   analysisReceived = true;
                 }
               } catch (error) {
@@ -311,6 +325,23 @@ export class AgentTester {
         personality.name,
         conversation.messages
       );
+
+      // Generate metrics for this conversation
+      console.log(`\n📊 Generating performance metrics for conversation ${conversationId}...`);
+      try {
+        const metricsResult = await this.backendClient.generateMetrics(conversationId);
+        if (metricsResult.success) {
+          console.log(`✅ Metrics generated successfully!`);
+          console.log(`📊 Final Performance Index: ${metricsResult.metrics?.metrics?.aggregate_scores?.final_performance_index || 'N/A'}/100`);
+          console.log(`   Check the Metrics Generator logs for detailed breakdown\n`);
+        } else {
+          console.log(`⚠️  Metrics generation returned: ${metricsResult.message}`);
+          console.log(`   The Metrics Generator might be unavailable or still processing\n`);
+        }
+      } catch (error) {
+        console.log(`⚠️  Could not generate metrics: ${error}`);
+        console.log(`   The Metrics Generator might be unavailable\n`);
+      }
 
       this.emit({
         type: "conversation_completed",

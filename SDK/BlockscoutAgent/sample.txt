@@ -194,14 +194,12 @@ class BlockScoutMCPClient:
         
         self.request_id += 1
         
-        logger.info(f"MCP: Calling MCP tool: {tool_name}")
-        logger.info(f"MCP: MCP URL: {self.mcp_url}")
-        logger.info(f"MCP: Request payload: {json.dumps(payload, indent=2)}")
+        logger.info(f"Calling MCP tool: {tool_name}")
+        logger.debug(f"Request payload: {json.dumps(payload, indent=2)}")
         
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
                 # CRITICAL: Must accept BOTH content types
-                logger.info(f"MCP: Sending POST request to {self.mcp_url}")
                 response = await client.post(
                     self.mcp_url,
                     json=payload,
@@ -211,24 +209,13 @@ class BlockScoutMCPClient:
                     }
                 )
                 
-                logger.info(f"MCP: Response status: {response.status_code}")
-                logger.info(f"MCP: Response Content-Type: {response.headers.get('content-type')}")
-                logger.info(f"MCP: Response headers: {dict(response.headers)}")
-                logger.info(f"MCP: Response text length: {len(response.text)}")
-                logger.info(f"MCP: Full response text: {response.text}")
-                
-                # Log specific error details for 404s
-                if response.status_code == 404:
-                    logger.error(f"MCP: 404 ERROR - Full response: {response.text}")
-                    logger.error(f"MCP: 404 ERROR - Headers: {dict(response.headers)}")
-                elif response.status_code >= 400:
-                    logger.error(f"MCP: HTTP ERROR {response.status_code} - Full response: {response.text}")
-                    logger.error(f"MCP: HTTP ERROR {response.status_code} - Headers: {dict(response.headers)}")
+                logger.info(f"Response status: {response.status_code}")
+                logger.info(f"Response Content-Type: {response.headers.get('content-type')}")
                 
                 # Check if we got an error response
                 if response.status_code >= 400:
                     error_body = response.text
-                    logger.error(f"MCP: Error response ({response.status_code}): {error_body}")
+                    logger.error(f"Error response ({response.status_code}): {error_body}")
                     raise Exception(f"MCP server returned {response.status_code}: {error_body}")
                 
                 response.raise_for_status()
@@ -237,82 +224,58 @@ class BlockScoutMCPClient:
                 
                 # Handle SSE response
                 if "text/event-stream" in content_type:
-                    logger.info("MCP: Handling SSE stream response")
+                    logger.info("Handling SSE stream response")
                     result_data = None
                     error_data = None
                     
                     # Parse the SSE response manually
-                    logger.info(f"MCP: Parsing SSE response lines...")
-                    lines = response.text.split("\n")
-                    logger.info(f"MCP: Total SSE lines: {len(lines)}")
-                    
-                    for i, line in enumerate(lines):
-                        logger.info(f"MCP: Line {i}: {line}")
+                    for line in response.text.split("\n"):
                         if line.startswith("data: "):
                             data_str = line[6:]
-                            logger.info(f"MCP: SSE data: {data_str}")
                             
                             if data_str == "[DONE]":
-                                logger.info("MCP: Received [DONE] signal")
                                 break
                             
                             try:
                                 data = json.loads(data_str)
-                                logger.info(f"MCP: Parsed SSE JSON: {data}")
                                 
                                 if "result" in data:
                                     result_data = data["result"]
-                                    logger.info("MCP: Received result from MCP server")
-                                    logger.info(f"MCP: Result data: {result_data}")
+                                    logger.info("Received result from MCP server")
                                 
                                 if "error" in data:
                                     error_data = data["error"]
-                                    logger.error(f"MCP: MCP error: {error_data}")
+                                    logger.error(f"MCP error: {error_data}")
                                     
                             except json.JSONDecodeError as e:
-                                logger.warning(f"MCP: Failed to parse SSE data: {data_str}, error: {e}")
+                                logger.warning(f"Failed to parse SSE data: {data_str}, error: {e}")
                                 continue
                     
                     # Process the result
-                    logger.info(f"MCP: Final result_data: {result_data}")
-                    logger.info(f"MCP: Final error_data: {error_data}")
-                    
                     if error_data:
                         error_message = error_data.get("message", str(error_data))
-                        logger.error(f"MCP: Raising error: {error_message}")
                         raise Exception(f"MCP Error: {error_message}")
                     
                     if result_data is None:
-                        logger.error("MCP: No result received from MCP server")
                         raise Exception("No result received from MCP server")
                     
-                    logger.info(f"MCP: Extracting tool result from: {result_data}")
-                    extracted_result = self._extract_tool_result(result_data)
-                    logger.info(f"MCP: Extracted result: {extracted_result}")
-                    return extracted_result
+                    return self._extract_tool_result(result_data)
                 
                 # Handle regular JSON response
                 elif "application/json" in content_type:
-                    logger.info("MCP: Handling JSON response")
+                    logger.info("Handling JSON response")
                     data = response.json()
-                    logger.info(f"MCP: JSON response data: {data}")
                     
                     if "error" in data:
                         error_message = data["error"].get("message", str(data["error"]))
-                        logger.error(f"MCP: JSON error: {error_message}")
                         raise Exception(f"MCP Error: {error_message}")
                     
                     if "result" in data:
-                        logger.info(f"MCP: JSON result: {data['result']}")
-                        extracted_result = self._extract_tool_result(data["result"])
-                        logger.info(f"MCP: Extracted JSON result: {extracted_result}")
-                        return extracted_result
+                        return self._extract_tool_result(data["result"])
                     
-                    logger.error(f"MCP: Unexpected JSON response format: {data}")
                     raise Exception(f"Unexpected JSON response format: {data}")
                 
                 else:
-                    logger.error(f"MCP: Unexpected content type: {content_type}")
                     raise Exception(f"Unexpected content type: {content_type}")
                     
         except httpx.HTTPStatusError as e:
@@ -326,46 +289,28 @@ class BlockScoutMCPClient:
     def _extract_tool_result(self, tool_result: Any) -> Dict[str, Any]:
         """Extract and parse the tool result from MCP response."""
         
-        logger.info(f"MCP: Extracting tool result from: {tool_result}")
-        logger.info(f"MCP: Tool result type: {type(tool_result)}")
-        
         # MCP returns results in a specific format with 'content' field
         if isinstance(tool_result, dict) and "content" in tool_result:
             content = tool_result["content"]
-            logger.info(f"MCP: Found content field: {content}")
-            logger.info(f"MCP: Content type: {type(content)}")
             
             # Content is usually an array of content items
             if isinstance(content, list) and len(content) > 0:
                 first_content = content[0]
-                logger.info(f"MCP: First content item: {first_content}")
-                logger.info(f"MCP: First content type: {type(first_content)}")
                 
                 # Text content has the data in 'text' field
                 if isinstance(first_content, dict) and "text" in first_content:
                     text_data = first_content["text"]
-                    logger.info(f"MCP: Found text data: {text_data}")
-                    logger.info(f"MCP: Text data type: {type(text_data)}")
                     
                     # Try to parse as JSON
                     try:
                         parsed = json.loads(text_data)
-                        logger.info("MCP: Successfully parsed tool result as JSON")
-                        logger.info(f"MCP: Parsed result: {parsed}")
+                        logger.info("Successfully parsed tool result")
                         return parsed
-                    except json.JSONDecodeError as e:
-                        logger.warning(f"MCP: Failed to parse as JSON: {e}")
-                        logger.info("MCP: Returning as raw text")
+                    except json.JSONDecodeError:
+                        # If not JSON, return as raw text
                         return {"raw_text": text_data}
-                else:
-                    logger.warning(f"MCP: First content item is not a dict with 'text' field: {first_content}")
-            else:
-                logger.warning(f"MCP: Content is not a non-empty list: {content}")
-        else:
-            logger.warning(f"MCP: Tool result is not a dict with 'content' field: {tool_result}")
         
         # If we couldn't extract structured data, return the raw result
-        logger.info(f"MCP: Returning raw result: {tool_result}")
         return tool_result if isinstance(tool_result, dict) else {"data": tool_result}
     
     async def get_transaction(self, tx_hash: str, chain_id: str = "8453") -> Dict[str, Any]:
@@ -377,38 +322,15 @@ class BlockScoutMCPClient:
             chain_id: Chain ID as STRING (e.g., "8453" for Base mainnet)
         """
         
-        logger.info(f"MCP: Starting get_transaction for tx: {tx_hash}")
-        logger.info(f"MCP: Chain ID: {chain_id}")
-        logger.info(f"MCP: Chain ID type: {type(chain_id)}")
-        logger.info(f"MCP: Transaction hash length: {len(tx_hash)}")
-        logger.info(f"MCP: Transaction hash starts with 0x: {tx_hash.startswith('0x')}")
-        
         # FIXED: Use correct parameter names and ensure chain_id is a string
-        arguments = {
-            "chain_id": str(chain_id),  # Ensure it's a string
-            "transaction_hash": tx_hash,  # Changed from 'hash' to 'transaction_hash'
-            "include_raw_input": False
-        }
-        
-        logger.info(f"MCP: Calling tool with arguments: {arguments}")
-        logger.info(f"MCP: Tool name: get_transaction_info")
-        logger.info(f"MCP: MCP URL: {self.mcp_url}")
-        
-        try:
-            result = await self.call_tool(
-                "get_transaction_info",
-                arguments
-            )
-            logger.info(f"MCP: Successfully got transaction data for tx: {tx_hash}")
-            logger.info(f"MCP: Result type: {type(result)}")
-            logger.info(f"MCP: Result keys: {list(result.keys()) if isinstance(result, dict) else 'Not a dict'}")
-            return result
-        except Exception as e:
-            logger.error(f"MCP: Error getting transaction {tx_hash}: {e}")
-            logger.error(f"MCP: Exception type: {type(e).__name__}")
-            import traceback
-            logger.error(f"MCP: Traceback: {traceback.format_exc()}")
-            raise
+        return await self.call_tool(
+            "get_transaction_info",
+            {
+                "chain_id": str(chain_id),  # Ensure it's a string
+                "transaction_hash": tx_hash,  # Changed from 'hash' to 'transaction_hash'
+                "include_raw_input": False
+            }
+        )
     
     async def get_chains_list(self) -> List[Dict[str, Any]]:
         """Get list of supported chains."""
@@ -433,10 +355,10 @@ class BlockscoutAgent:
         self.name = name
         self.agent = Agent(
             name=name,
-            port=8080,
+            port=8001,
             seed="blockscout agent seed phrase for transaction analysis",
             mailbox=f"{AGENTVERSE_API_KEY}" if AGENTVERSE_API_KEY else None,
-            endpoint=["https://blockscoutagent-739298578243.us-central1.run.app/submit"]
+            endpoint=["http://127.0.0.1:8001/submit"]
         )
         self.asi_client = ASIOneClient(ASI_ONE_API_KEY)
         self.blockscout_client = BlockScoutMCPClient(BLOCKSCOUT_MCP_URL)
@@ -505,54 +427,39 @@ class BlockscoutAgent:
         @self.agent.on_message(model=TransactionContextRequest)
         async def handle_transaction_context(ctx: Context, sender: str, msg: TransactionContextRequest):
             """Handle transaction context request from backend agent."""
-            ctx.logger.info(f"A2A: Received transaction context from {sender}")
-            ctx.logger.info(f"A2A: Conversation ID: {msg.conversation_id}")
-            ctx.logger.info(f"A2A: Personality: {msg.personality_name}")
-            ctx.logger.info(f"A2A: Transaction: {msg.transaction_hash}")
-            ctx.logger.info(f"A2A: Chain ID: {msg.chain_id}")
-            ctx.logger.info(f"A2A: Transaction timestamp: {msg.transaction_timestamp}")
-            ctx.logger.info(f"A2A: Number of conversation messages: {len(msg.conversation_messages)}")
-            
-            # Log current state before processing
-            ctx.logger.info(f"A2A: Current transaction_analyses keys before processing: {list(self.transaction_analyses.keys())}")
-            ctx.logger.info(f"A2A: Total stored analyses before processing: {len(self.transaction_analyses)}")
+            ctx.logger.info(f"Received transaction context from {sender}")
+            ctx.logger.info(f"Conversation ID: {msg.conversation_id}")
+            ctx.logger.info(f"Personality: {msg.personality_name}")
+            ctx.logger.info(f"Transaction: {msg.transaction_hash}")
+            ctx.logger.info(f"Chain ID: {msg.chain_id}")
             
             try:
                 # Wait 10 seconds before analyzing (as requested)
-                ctx.logger.info("A2A: Waiting 10 seconds before analysis...")
+                ctx.logger.info("Waiting 10 seconds before analysis...")
                 await asyncio.sleep(10)
                 
                 # Fetch transaction data from BlockScout
-                ctx.logger.info(f"A2A: Fetching transaction data from BlockScout for tx: {msg.transaction_hash}")
                 tx_data = await self.blockscout_client.get_transaction(
                     msg.transaction_hash, 
                     msg.chain_id
                 )
-                ctx.logger.info(f"A2A: Successfully fetched transaction data. Keys: {list(tx_data.keys()) if isinstance(tx_data, dict) else 'Not a dict'}")
                 
                 # Create conversation-aware analysis
-                ctx.logger.info(f"A2A: Creating conversation-aware analysis...")
                 analysis = await self._create_conversation_aware_analysis(
                     msg.conversation_messages,
                     msg.personality_name,
                     msg.transaction_hash,
                     tx_data
                 )
-                ctx.logger.info(f"A2A: Analysis created. Length: {len(analysis)}")
-                ctx.logger.info(f"A2A: Analysis preview: {analysis[:200]}...")
                 
                 # Store analysis in memory
-                analysis_data = {
+                self.transaction_analyses[msg.transaction_hash] = {
                     "conversation_id": msg.conversation_id,
                     "analysis": analysis,
                     "timestamp": datetime.utcnow().isoformat(),
                     "success": True
                 }
-                self.transaction_analyses[msg.transaction_hash] = analysis_data
-                ctx.logger.info(f"A2A: Stored analysis in memory for tx: {msg.transaction_hash}")
-                ctx.logger.info(f"A2A: Analysis data stored: {analysis_data}")
-                ctx.logger.info(f"A2A: Current transaction_analyses keys after storing: {list(self.transaction_analyses.keys())}")
-                ctx.logger.info(f"A2A: Total stored analyses after storing: {len(self.transaction_analyses)}")
+                ctx.logger.info(f"Stored analysis in memory for tx: {msg.transaction_hash}")
                 
                 # Send analysis back to backend agent
                 response = TransactionAnalysisResponse(
@@ -563,27 +470,20 @@ class BlockscoutAgent:
                     timestamp=datetime.utcnow().isoformat()
                 )
                 
-                ctx.logger.info(f"A2A: Sending response back to {sender}")
                 await ctx.send(sender, response)
-                ctx.logger.info(f"A2A: Successfully sent transaction analysis back to {sender}")
+                ctx.logger.info(f"Sent transaction analysis back to {sender}")
                 
             except Exception as e:
-                ctx.logger.error(f"A2A: Error analyzing transaction context: {e}")
-                ctx.logger.error(f"A2A: Exception type: {type(e).__name__}")
-                ctx.logger.error(f"A2A: Exception details: {str(e)}")
-                import traceback
-                ctx.logger.error(f"A2A: Traceback: {traceback.format_exc()}")
+                ctx.logger.error(f"Error analyzing transaction context: {e}")
                 
                 # Store error in memory
-                error_analysis_data = {
+                self.transaction_analyses[msg.transaction_hash] = {
                     "conversation_id": msg.conversation_id,
                     "analysis": f"Analysis failed: {str(e)}",
                     "timestamp": datetime.utcnow().isoformat(),
                     "success": False
                 }
-                self.transaction_analyses[msg.transaction_hash] = error_analysis_data
-                ctx.logger.info(f"A2A: Stored error analysis in memory for tx: {msg.transaction_hash}")
-                ctx.logger.info(f"A2A: Error analysis data stored: {error_analysis_data}")
+                ctx.logger.info(f"Stored error analysis in memory for tx: {msg.transaction_hash}")
                 
                 error_response = TransactionAnalysisResponse(
                     success=False,
@@ -593,9 +493,7 @@ class BlockscoutAgent:
                     timestamp=datetime.utcnow().isoformat()
                 )
                 
-                ctx.logger.info(f"A2A: Sending error response back to {sender}")
                 await ctx.send(sender, error_response)
-                ctx.logger.info(f"A2A: Successfully sent error response back to {sender}")
     
     def _register_rest_endpoints(self):
         """Register REST endpoints for the agent."""
@@ -711,70 +609,20 @@ class BlockscoutAgent:
                 endpoints={
                     "analyze_transaction": "POST /rest/analyze-transaction",
                     "query": "POST /rest/query",
-                    "test_blockscout": "POST /rest/test-blockscout",
-                    "get_analysis": "POST /rest/get-analysis",
                     "health": "GET /rest/health",
                     "info": "GET /rest/info"
                 }
             )
         
-        @self.agent.on_rest_post("/rest/test-blockscout", TransactionRequest, TransactionResponse)
-        async def handle_test_blockscout(ctx: Context, req: TransactionRequest) -> TransactionResponse:
-            """Test endpoint to directly call BlockScout MCP with detailed logging."""
-            ctx.logger.info(f"TEST: Testing BlockScout MCP call for tx: {req.tx_hash}")
-            ctx.logger.info(f"TEST: Chain ID: {req.chain_id}")
-            
-            try:
-                # Direct call to BlockScout MCP
-                tx_data = await self.blockscout_client.get_transaction(
-                    req.tx_hash, 
-                    str(req.chain_id)
-                )
-                
-                ctx.logger.info(f"TEST: Successfully got transaction data")
-                ctx.logger.info(f"TEST: Transaction data keys: {list(tx_data.keys()) if isinstance(tx_data, dict) else 'Not a dict'}")
-                ctx.logger.info(f"TEST: Transaction data: {tx_data}")
-                
-                return TransactionResponse(
-                    success=True,
-                    tx_hash=req.tx_hash,
-                    data=tx_data,
-                    analysis="Test successful - transaction data retrieved"
-                )
-                
-            except Exception as e:
-                ctx.logger.error(f"TEST: Error calling BlockScout MCP: {e}")
-                ctx.logger.error(f"TEST: Exception type: {type(e).__name__}")
-                import traceback
-                ctx.logger.error(f"TEST: Traceback: {traceback.format_exc()}")
-                
-                return TransactionResponse(
-                    success=False,
-                    tx_hash=req.tx_hash,
-                    error=f"Test failed: {str(e)}"
-                )
-        
         @self.agent.on_rest_post("/rest/get-analysis", TransactionRequest, AnalysisRetrievalResponse)
         async def handle_get_analysis(ctx: Context, req: TransactionRequest) -> AnalysisRetrievalResponse:
             """POST endpoint to retrieve stored transaction analysis."""
             tx_hash = req.tx_hash
-            chain_id = req.chain_id
             ctx.logger.info(f"POST: Received request for analysis of tx: {tx_hash}")
-            ctx.logger.info(f"POST: Chain ID: {chain_id}")
-            ctx.logger.info(f"POST: Include logs: {req.include_logs}")
-            ctx.logger.info(f"POST: Include traces: {req.include_traces}")
-            
-            # Log current state of transaction_analyses
-            ctx.logger.info(f"POST: Current transaction_analyses keys: {list(self.transaction_analyses.keys())}")
-            ctx.logger.info(f"POST: Total stored analyses: {len(self.transaction_analyses)}")
             
             if tx_hash in self.transaction_analyses:
                 analysis_data = self.transaction_analyses[tx_hash]
                 ctx.logger.info(f"Found analysis for transaction: {tx_hash}")
-                ctx.logger.info(f"Analysis data keys: {list(analysis_data.keys())}")
-                ctx.logger.info(f"Analysis success: {analysis_data.get('success', 'unknown')}")
-                ctx.logger.info(f"Analysis timestamp: {analysis_data.get('timestamp', 'unknown')}")
-                ctx.logger.info(f"Analysis length: {len(analysis_data.get('analysis', ''))}")
                 
                 return AnalysisRetrievalResponse(
                     success=True,
@@ -784,14 +632,7 @@ class BlockscoutAgent:
                     timestamp=analysis_data["timestamp"]
                 )
             else:
-                ctx.logger.warning(f"No analysis found for transaction: {tx_hash}")
-                ctx.logger.warning(f"Available transaction hashes: {list(self.transaction_analyses.keys())}")
-                
-                # Check if there's a similar hash (for debugging)
-                similar_hashes = [h for h in self.transaction_analyses.keys() if h.startswith(tx_hash[:10])]
-                if similar_hashes:
-                    ctx.logger.warning(f"Found similar hashes: {similar_hashes}")
-                
+                ctx.logger.info(f"No analysis found for transaction: {tx_hash}")
                 return AnalysisRetrievalResponse(
                     success=False,
                     transaction_hash=tx_hash,
@@ -967,24 +808,17 @@ class BlockscoutAgent:
             ctx.logger.info("📊 Powered by ASI:One AI and BlockScout MCP")
             ctx.logger.info("✅ Using httpx-sse library for SSE streaming")
             ctx.logger.info("🔧 FIXED: chain_id now sent as string, using 'transaction_hash' parameter")
-            ctx.logger.info(f"🔧 MCP URL: {BLOCKSCOUT_MCP_URL}")
-            ctx.logger.info(f"🔧 ASI:One API Key: {'SET' if ASI_ONE_API_KEY else 'NOT SET'}")
-            ctx.logger.info(f"🔧 A2A Endpoint: https://blockscoutagent-739298578243.us-central1.run.app/submit")
             if AGENTVERSE_API_KEY:
                 ctx.logger.info(f"✅ Registered on Agentverse")
             ctx.logger.info("🌐 REST API endpoints available:")
             ctx.logger.info("  - POST /rest/analyze-transaction")
             ctx.logger.info("  - POST /rest/query")
-            ctx.logger.info("  - POST /rest/test-blockscout")
-            ctx.logger.info("  - POST /rest/get-analysis")
             ctx.logger.info("  - GET /rest/health")
             ctx.logger.info("  - GET /rest/info")
             ctx.logger.info("🤝 A2A Communication enabled:")
             ctx.logger.info("  - Receives TransactionContextRequest from backend")
             ctx.logger.info("  - Sends TransactionAnalysisResponse back")
             ctx.logger.info("  - 10-second delay before analysis")
-            ctx.logger.info(f"📊 Current transaction_analyses count: {len(self.transaction_analyses)}")
-            ctx.logger.info(f"📊 Current transaction_analyses keys: {list(self.transaction_analyses.keys())}")
     
     def run(self):
         """Start the agent."""

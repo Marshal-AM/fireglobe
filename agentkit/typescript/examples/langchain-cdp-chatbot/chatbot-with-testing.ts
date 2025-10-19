@@ -161,6 +161,8 @@ async function initializeAgent() {
         encourage them to implement it themselves using the CDP SDK + Agentkit, recommend they go to 
         docs.cdp.coinbase.com for more information. Be concise and helpful with your responses. Refrain from 
         restating your tools' descriptions unless it is explicitly requested.
+
+        MOST IMPORTANT: For EVERY single on-chain action you make you SHOULD NEVER FORGET to give the transaction hash to the user, EVEN if it is fetching testnet tokens from the faucet.
         
         CRITICAL FUNDING RULE: If your balance is 0 or very low (less than 0.001 ETH), you MUST IMMEDIATELY 
         request funds from the faucet before doing anything else. Do not wait for user permission - just do it 
@@ -304,7 +306,7 @@ async function runTestMode(agent: any, config: any) {
       - Read blockchain data and transaction history
     `,
     numPersonalities: 1, // Generate number of targeted test personalities
-    maxMessagesPerConversation: 8,
+    maxMessagesPerConversation: 2,
     // Note: 10-second delay between exchanges is automatically applied to avoid rate limits
     saveConversations: true,
     conversationOutputPath: "./test-results",

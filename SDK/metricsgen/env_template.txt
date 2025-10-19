@@ -1,0 +1,9 @@
+# ASI:One API Key (Required)
+ASI_ONE_API_KEY=your_asi_one_api_key_here
+
+# Agentverse API Key (Optional - for mailbox functionality)
+AGENTVERSE_API_KEY=your_agentverse_api_key_here
+
+# Backend URL (defaults to deployed backend if not set)
+BACKEND_URL=https://backend-739298578243.us-central1.run.app
+

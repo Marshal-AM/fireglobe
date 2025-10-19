@@ -215,5 +215,51 @@ export class BackendClient {
       throw error;
     }
   }
+
+  /**
+   * Generate comprehensive metrics for a conversation
+   */
+  async generateMetrics(
+    conversationId?: string,
+    metricsGeneratorUrl?: string
+  ): Promise<{ success: boolean; metrics?: any; message: string }> {
+    try {
+      const metricsUrl = metricsGeneratorUrl || 
+                         process.env.METRICS_GENERATOR_URL ||
+                         "https://metricsgen-739298578243.us-central1.run.app";
+      const response = await axios.post(
+        `${metricsUrl}/metrics/generate`,
+        {
+          conversation_id: conversationId || null,
+        },
+        {
+          timeout: 60000, // 60 second timeout for metrics generation
+        }
+      );
+
+      return {
+        success: response.data.success,
+        metrics: response.data.metrics,
+        message: response.data.success 
+          ? "Metrics generated successfully" 
+          : "Failed to generate metrics",
+      };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error(
+          `⚠️  Metrics generation error: ${error.response?.data?.detail || error.message}`
+        );
+        return {
+          success: false,
+          message: `Metrics generation error: ${error.response?.data?.detail || error.message}`,
+        };
+      }
+      console.error(`⚠️  Metrics generation error: ${error}`);
+      return {
+        success: false,
+        message: `Metrics generation error: ${error}`,
+      };
+    }
+  }
 }
 

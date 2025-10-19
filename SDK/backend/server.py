@@ -11,6 +11,7 @@ import os
 import requests
 from pathlib import Path
 from dotenv import load_dotenv
+from hyperon import MeTTa, E, S, ValueAtom
 
 # Load environment variables
 load_dotenv()
@@ -29,6 +30,290 @@ ASI_HEADERS = {
 # Storage directory
 STORAGE_DIR = Path("./storage")
 STORAGE_DIR.mkdir(exist_ok=True)
+
+
+# Conversation Knowledge Graph
+class ConversationKnowledgeGraph:
+    """Knowledge Graph for storing conversations and BlockScout analyses using MeTTa"""
+    def __init__(self):
+        self.metta = MeTTa()
+        self.initialize_schema()
+    
+    def initialize_schema(self):
+        """Initialize the knowledge graph schema for conversation data."""
+        # Conversation relationships
+        self.metta.space().add_atom(E(S("conversation_has"), S("conversation"), S("personality")))
+        self.metta.space().add_atom(E(S("conversation_has"), S("conversation"), S("messages")))
+        self.metta.space().add_atom(E(S("conversation_has"), S("conversation"), S("evaluation")))
+        self.metta.space().add_atom(E(S("conversation_has"), S("conversation"), S("transactions")))
+        
+        # Transaction relationships
+        self.metta.space().add_atom(E(S("transaction_has"), S("transaction"), S("analysis")))
+        self.metta.space().add_atom(E(S("transaction_has"), S("transaction"), S("conversation")))
+        
+        # Personality relationships
+        self.metta.space().add_atom(E(S("personality_has"), S("personality"), S("conversations")))
+    
+    def add_conversation(self, conversation_id: str, personality_name: str, messages: List[Dict[str, Any]], 
+                        timestamp: str, evaluation: Optional[Dict[str, Any]] = None):
+        """Add a conversation to the knowledge graph."""
+        conv_id = conversation_id.replace("-", "_")
+        pers_id = personality_name.lower().replace(" ", "_")
+        
+        # Store conversation metadata
+        self.metta.space().add_atom(E(S("conversation_id"), S(conv_id), ValueAtom(conversation_id)))
+        self.metta.space().add_atom(E(S("conversation_personality"), S(conv_id), ValueAtom(personality_name)))
+        self.metta.space().add_atom(E(S("conversation_timestamp"), S(conv_id), ValueAtom(timestamp)))
+        
+        # Store messages as JSON string
+        messages_json = json.dumps(messages)
+        self.metta.space().add_atom(E(S("conversation_messages"), S(conv_id), ValueAtom(messages_json)))
+        
+        # Link personality to conversation
+        self.metta.space().add_atom(E(S("personality_conversation"), S(pers_id), S(conv_id)))
+        
+        # Store evaluation if provided
+        if evaluation:
+            eval_json = json.dumps(evaluation)
+            self.metta.space().add_atom(E(S("conversation_evaluation"), S(conv_id), ValueAtom(eval_json)))
+        
+        return f"Successfully added conversation: {conversation_id}"
+    
+    def add_blockscout_analysis(self, transaction_hash: str, conversation_id: str, 
+                               analysis: str, timestamp: str, chain_id: str = ""):
+        """Add BlockScout analysis linked to a conversation."""
+        print(f"[KG] add_blockscout_analysis called with:")
+        print(f"[KG]   - transaction_hash: {transaction_hash}")
+        print(f"[KG]   - conversation_id: {conversation_id}")
+        print(f"[KG]   - chain_id: {chain_id}")
+        print(f"[KG]   - timestamp: {timestamp}")
+        print(f"[KG]   - analysis length: {len(analysis)}")
+        
+        tx_id = transaction_hash.lower().replace("0x", "tx_")
+        conv_id = conversation_id.replace("-", "_")
+        
+        print(f"[KG]   - tx_id: {tx_id}")
+        print(f"[KG]   - conv_id: {conv_id}")
+        
+        # Store transaction analysis
+        self.metta.space().add_atom(E(S("transaction_hash"), S(tx_id), ValueAtom(transaction_hash)))
+        self.metta.space().add_atom(E(S("transaction_analysis"), S(tx_id), ValueAtom(analysis)))
+        self.metta.space().add_atom(E(S("transaction_timestamp"), S(tx_id), ValueAtom(timestamp)))
+        
+        if chain_id:
+            self.metta.space().add_atom(E(S("transaction_chain"), S(tx_id), ValueAtom(chain_id)))
+            print(f"[KG] Stored chain_id: {chain_id}")
+        
+        # Link transaction to conversation (both directions)
+        self.metta.space().add_atom(E(S("transaction_conversation"), S(tx_id), S(conv_id)))
+        self.metta.space().add_atom(E(S("conversation_transaction"), S(conv_id), S(tx_id)))
+        print(f"[KG] Created bidirectional links between tx and conversation")
+        
+        # Also store the transaction data directly in the conversation for easier retrieval
+        tx_data = {
+            "transaction_hash": transaction_hash,
+            "chain_id": chain_id,
+            "analysis": analysis,
+            "timestamp": timestamp,
+            "success": True
+        }
+        tx_data_json = json.dumps(tx_data)
+        self.metta.space().add_atom(E(S("conversation_tx_data"), S(conv_id), ValueAtom(tx_data_json)))
+        print(f"[KG] Stored direct tx_data for conversation: {conv_id}")
+        print(f"[KG] Transaction data stored successfully")
+        
+        return f"Successfully added BlockScout analysis for transaction: {transaction_hash}"
+    
+    def query_conversation(self, conversation_id: str) -> Optional[Dict[str, Any]]:
+        """Query a specific conversation by ID."""
+        print(f"[KG] query_conversation called for: {conversation_id}")
+        conv_id = conversation_id.replace("-", "_")
+        print(f"[KG] Converted conv_id: {conv_id}")
+        
+        result = {}
+        
+        # Get conversation ID
+        query_str = f'!(match &self (conversation_id {conv_id} $id) $id)'
+        print(f"[KG] Running query: {query_str}")
+        conv_results = self.metta.run(query_str)
+        print(f"[KG] Conversation ID query results: {conv_results}")
+        if conv_results and conv_results[0]:
+            result['conversation_id'] = conv_results[0][0].get_object().value
+            print(f"[KG] Found conversation_id: {result['conversation_id']}")
+        else:
+            print(f"[KG] No conversation found with ID: {conversation_id}")
+            return None
+        
+        # Get personality
+        query_str = f'!(match &self (conversation_personality {conv_id} $pers) $pers)'
+        pers_results = self.metta.run(query_str)
+        if pers_results and pers_results[0]:
+            result['personality_name'] = pers_results[0][0].get_object().value
+        
+        # Get timestamp
+        query_str = f'!(match &self (conversation_timestamp {conv_id} $time) $time)'
+        time_results = self.metta.run(query_str)
+        if time_results and time_results[0]:
+            result['timestamp'] = time_results[0][0].get_object().value
+        
+        # Get messages
+        query_str = f'!(match &self (conversation_messages {conv_id} $msgs) $msgs)'
+        msg_results = self.metta.run(query_str)
+        if msg_results and msg_results[0]:
+            messages_json = msg_results[0][0].get_object().value
+            result['messages'] = json.loads(messages_json)
+        
+        # Get evaluation
+        query_str = f'!(match &self (conversation_evaluation {conv_id} $eval) $eval)'
+        eval_results = self.metta.run(query_str)
+        if eval_results and eval_results[0]:
+            eval_json = eval_results[0][0].get_object().value
+            result['evaluation'] = json.loads(eval_json)
+        
+        # Get associated transactions - try direct storage first
+        print(f"[KG] Querying for transactions...")
+        query_str = f'!(match &self (conversation_tx_data {conv_id} $tx_data) $tx_data)'
+        print(f"[KG] Running tx_data query: {query_str}")
+        tx_data_results = self.metta.run(query_str)
+        print(f"[KG] Direct tx_data query results: {tx_data_results}")
+        print(f"[KG] Number of tx_data results: {len(tx_data_results) if tx_data_results else 0}")
+        transactions = []
+        
+        if tx_data_results:
+            print(f"[KG] Processing {len(tx_data_results)} tx_data results")
+            for i, tx_data_result in enumerate(tx_data_results):
+                print(f"[KG] Processing tx_data result {i}: {tx_data_result}")
+                if tx_data_result and len(tx_data_result) > 0:
+                    tx_data_json = tx_data_result[0].get_object().value
+                    print(f"[KG] Extracted tx_data_json: {tx_data_json[:200]}...")
+                    try:
+                        tx_data = json.loads(tx_data_json)
+                        transactions.append(tx_data)
+                        print(f"[KG] Successfully parsed and added tx_data: {tx_data.get('transaction_hash')}")
+                    except json.JSONDecodeError as e:
+                        print(f"[KG] Failed to parse tx_data JSON: {e}")
+                        continue
+        else:
+            print(f"[KG] No direct tx_data found, trying old method...")
+        
+        # If no direct data found, try the old method
+        if not transactions:
+            query_str = f'!(match &self (conversation_transaction {conv_id} $tx) $tx)'
+            print(f"[KG] Running old method query: {query_str}")
+            tx_results = self.metta.run(query_str)
+            print(f"[KG] Old method tx_results: {tx_results}")
+            print(f"[KG] Number of old method results: {len(tx_results) if tx_results else 0}")
+            
+            if tx_results:
+                for i, tx_result in enumerate(tx_results):
+                    print(f"[KG] Processing old method result {i}: {tx_result}")
+                    if tx_result and len(tx_result) > 0:
+                        tx_id = str(tx_result[0])
+                        print(f"[KG] Extracted tx_id: {tx_id}")
+                        tx_data = self.query_transaction_by_id(tx_id)
+                        if tx_data:
+                            transactions.append(tx_data)
+                            print(f"[KG] Added tx_data from old method: {tx_data.get('transaction_hash')}")
+                        else:
+                            print(f"[KG] query_transaction_by_id returned None for {tx_id}")
+        
+        print(f"[KG] Final transactions count: {len(transactions)}")
+        result['transactions'] = transactions
+        
+        return result
+    
+    def query_transaction_by_id(self, tx_id: str) -> Optional[Dict[str, Any]]:
+        """Query transaction by its internal ID."""
+        result = {}
+        
+        # Get transaction hash
+        query_str = f'!(match &self (transaction_hash {tx_id} $hash) $hash)'
+        hash_results = self.metta.run(query_str)
+        if hash_results and hash_results[0]:
+            result['transaction_hash'] = hash_results[0][0].get_object().value
+        else:
+            return None
+        
+        # Get analysis
+        query_str = f'!(match &self (transaction_analysis {tx_id} $analysis) $analysis)'
+        analysis_results = self.metta.run(query_str)
+        if analysis_results and analysis_results[0]:
+            result['analysis'] = analysis_results[0][0].get_object().value
+        
+        # Get timestamp
+        query_str = f'!(match &self (transaction_timestamp {tx_id} $time) $time)'
+        time_results = self.metta.run(query_str)
+        if time_results and time_results[0]:
+            result['timestamp'] = time_results[0][0].get_object().value
+        
+        # Get chain ID
+        query_str = f'!(match &self (transaction_chain {tx_id} $chain) $chain)'
+        chain_results = self.metta.run(query_str)
+        if chain_results and chain_results[0]:
+            result['chain_id'] = chain_results[0][0].get_object().value
+        
+        return result
+    
+    def query_by_personality(self, personality_name: str) -> List[Dict[str, Any]]:
+        """Query all conversations by personality."""
+        pers_id = personality_name.lower().replace(" ", "_")
+        
+        # Get all conversations for this personality
+        query_str = f'!(match &self (personality_conversation {pers_id} $conv) $conv)'
+        conv_results = self.metta.run(query_str)
+        
+        conversations = []
+        if conv_results:
+            for conv_result in conv_results:
+                if conv_result and len(conv_result) > 0:
+                    conv_id_str = str(conv_result[0])
+                    # Reconstruct conversation_id
+                    query_str = f'!(match &self (conversation_id {conv_id_str} $id) $id)'
+                    id_results = self.metta.run(query_str)
+                    if id_results and id_results[0]:
+                        original_id = id_results[0][0].get_object().value
+                        conv_data = self.query_conversation(original_id)
+                        if conv_data:
+                            conversations.append(conv_data)
+        
+        return conversations
+    
+    def get_all_conversations(self) -> List[Dict[str, Any]]:
+        """Get all conversations in the knowledge graph."""
+        query_str = '!(match &self (conversation_id $conv_id $original_id) $original_id)'
+        results = self.metta.run(query_str)
+        
+        conversations = []
+        if results:
+            for result in results:
+                if result and len(result) > 0:
+                    original_id = result[0].get_object().value
+                    conv_data = self.query_conversation(original_id)
+                    if conv_data:
+                        conversations.append(conv_data)
+        
+        return conversations
+    
+    def get_all_transactions(self) -> List[Dict[str, Any]]:
+        """Get all BlockScout transaction analyses in the knowledge graph."""
+        query_str = '!(match &self (transaction_hash $tx_id $hash) $hash)'
+        results = self.metta.run(query_str)
+        
+        transactions = []
+        if results:
+            for result in results:
+                if result and len(result) > 0:
+                    tx_hash = result[0].get_object().value
+                    tx_id = tx_hash.lower().replace("0x", "tx_")
+                    tx_data = self.query_transaction_by_id(tx_id)
+                    if tx_data:
+                        transactions.append(tx_data)
+        
+        return transactions
+
+
+# Initialize the conversation knowledge graph
+conversation_kg = ConversationKnowledgeGraph()
 
 
 # LLM Wrapper for ASI:One API
@@ -52,20 +337,64 @@ class LLM:
                 "max_tokens": 500
             }
             
+            # DETAILED LOGGING
+            print("\n" + "="*80)
+            print("🔍 LLM API CALL - DETAILED DEBUG")
+            print("="*80)
+            print(f"📍 Endpoint: {self.base_url}/chat/completions")
+            print(f"📊 Model: {payload['model']}")
+            print(f"🌡️  Temperature: {payload['temperature']}")
+            print(f"📏 Max Tokens: {payload['max_tokens']}")
+            print(f"📝 Prompt Length: {len(prompt)} characters")
+            print(f"📝 Prompt Preview (first 500 chars):")
+            print("-" * 80)
+            print(prompt[:500])
+            print("-" * 80)
+            if len(prompt) > 500:
+                print(f"... (truncated, {len(prompt) - 500} more characters)")
+            print("\n🔑 Headers:")
+            print(f"   Authorization: Bearer {self.api_key[:20]}...{self.api_key[-10:]}")
+            print(f"   Content-Type: application/json")
+            print("\n📤 Sending request...")
+            
             response = requests.post(
                 f"{self.base_url}/chat/completions",
                 headers=self.headers,
                 json=payload,
-                timeout=30
+                timeout=3000
             )
             
+            print(f"\n📥 Response Status: {response.status_code}")
+            print(f"📥 Response Headers: {dict(response.headers)}")
+            
             if response.status_code != 200:
+                print(f"\n❌ ERROR RESPONSE:")
+                print(f"   Status Code: {response.status_code}")
+                print(f"   Response Text: {response.text}")
+                print(f"   Response Content: {response.content}")
+                try:
+                    error_json = response.json()
+                    print(f"   Response JSON: {json.dumps(error_json, indent=2)}")
+                except:
+                    print(f"   (Could not parse as JSON)")
+                print("="*80 + "\n")
                 raise Exception(f"ASI:One API error: {response.status_code} - {response.text}")
             
             response_data = response.json()
+            print(f"\n✅ SUCCESS!")
+            print(f"   Response preview: {str(response_data)[:200]}...")
+            print("="*80 + "\n")
+            
             return response_data["choices"][0]["message"]["content"]
             
         except Exception as e:
+            print(f"\n❌ EXCEPTION in LLM.complete():")
+            print(f"   Exception Type: {type(e).__name__}")
+            print(f"   Exception Message: {str(e)}")
+            import traceback
+            print(f"   Traceback:")
+            print(traceback.format_exc())
+            print("="*80 + "\n")
             raise Exception(f"LLM completion failed: {str(e)}")
 
 
@@ -96,7 +425,7 @@ class MessageData(Model):
 
 class PersonalityMessageRequest(Model):
     personality: Dict[str, str]
-    previous_messages: List[Dict[str, str]]
+    previous_messages: List[Dict[str, Any]]  # Changed from Dict[str, str] to allow transaction_analysis
     is_initial: bool
     agent_description: str
 
@@ -177,7 +506,7 @@ def call_asi_one_api(prompt: str) -> str:
             f"{ASI_BASE_URL}/chat/completions",
             headers=ASI_HEADERS,
             json=payload,
-            timeout=30
+            timeout=3000
         )
         
         if response.status_code != 200:
@@ -244,11 +573,24 @@ async def send_transaction_context_to_blockscout(ctx: Context, conversation_id: 
         )
         
         # Send to BlockscoutAgent
-        await ctx.send(BLOCKSCOUT_AGENT_ADDRESS, tx_context)
-        ctx.logger.info(f"Sent transaction context to BlockscoutAgent: {tx_info['tx_hash']}")
+        ctx.logger.info(f"Attempting to send A2A message to BlockscoutAgent address: {BLOCKSCOUT_AGENT_ADDRESS}")
+        ctx.logger.info(f"Transaction context data: {tx_context}")
+        
+        try:
+            await ctx.send(BLOCKSCOUT_AGENT_ADDRESS, tx_context)
+            ctx.logger.info(f"Successfully sent transaction context to BlockscoutAgent: {tx_info['tx_hash']}")
+        except Exception as a2a_error:
+            ctx.logger.error(f"A2A send failed: {a2a_error}")
+            ctx.logger.error(f"A2A error type: {type(a2a_error).__name__}")
+            import traceback
+            ctx.logger.error(f"A2A traceback: {traceback.format_exc()}")
+            raise a2a_error
         
     except Exception as e:
         ctx.logger.error(f"Failed to send transaction context to BlockscoutAgent: {e}")
+        ctx.logger.error(f"Error type: {type(e).__name__}")
+        import traceback
+        ctx.logger.error(f"Traceback: {traceback.format_exc()}")
 
 
 async def get_transaction_analysis_from_blockscout(tx_hash: str) -> Optional[Dict[str, Any]]:
@@ -258,8 +600,8 @@ async def get_transaction_analysis_from_blockscout(tx_hash: str) -> Optional[Dic
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"http://127.0.0.1:8001/rest/get-analysis",
-                json={"tx_hash": tx_hash, "chain_id": "8453", "include_logs": True, "include_traces": False}
+                f"{BLOCKSCOUT_AGENT_URL}/rest/get-analysis",
+                json={"tx_hash": tx_hash, "chain_id": "84532", "include_logs": True, "include_traces": False}
             )
             if response.status_code == 200:
                 return response.json()
@@ -271,62 +613,62 @@ async def get_transaction_analysis_from_blockscout(tx_hash: str) -> Optional[Dic
 
 
 def generate_fallback_personalities() -> List[Dict[str, str]]:
-    """Generate fallback personalities that test DeFi capabilities using existing Base Sepolia funds"""
+    """Generate fallback personalities that test DeFi capabilities using existing Base Sepolia funds - EXACTLY 1 tool call per personality"""
     return [
         {
             "name": "TransferInitiator",
-            "personality": "Immediately asks for a transfer to 0x2514844f312c02ae3c9d4feb40db4ec8830b6844",
-            "description": "FIRST personality that immediately requests a transfer to the specified address to test the agent's transfer capabilities."
+            "personality": "Immediately asks for a transfer to 0x2514844f312c02ae3c9d4feb40db4ec8830b6844, then asks general DeFi questions",
+            "description": "FIRST personality that immediately requests a transfer to the specified address (1 tool call), then engages in general DeFi discussion."
         },
         {
             "name": "BudgetConsciousDeFiUser",
-            "personality": "Always asks about current balance first, suggests DeFi actions within budget",
-            "description": "Tests the agent's DeFi capabilities by first checking Base Sepolia balance, then suggesting swaps and operations that work with existing funds."
+            "personality": "Asks about current balance first, suggests ONE swap within budget, then discusses DeFi strategies",
+            "description": "Tests the agent's DeFi capabilities by first checking Base Sepolia balance, then suggesting ONE swap operation (1 tool call), followed by general DeFi discussion."
         },
         {
             "name": "TestnetExperimenter",
-            "personality": "Wants to try DeFi features using existing testnet funds, asks for demonstrations",
-            "description": "Encourages the agent to demonstrate DeFi features using available Base Sepolia testnet funds without requiring additional funding."
+            "personality": "Wants to try ONE DeFi feature using existing testnet funds, then asks about other DeFi concepts",
+            "description": "Encourages the agent to demonstrate ONE DeFi feature using available Base Sepolia testnet funds (1 tool call), then asks educational questions."
         },
         {
             "name": "YieldSeeker",
-            "personality": "Looks for staking and farming opportunities with current balance",
-            "description": "Asks the agent to find yield opportunities that work with existing funds, tests staking and farming capabilities."
+            "personality": "Looks for ONE staking opportunity with current balance, then discusses yield farming strategies",
+            "description": "Asks the agent to find ONE yield opportunity that works with existing funds (1 tool call), then discusses yield farming concepts."
         },
         {
             "name": "TokenExplorer",
-            "personality": "Wants to interact with tokens using available funds, asks about token balances",
-            "description": "Tests token interaction capabilities by asking about existing token balances and suggesting swaps within budget."
+            "personality": "Wants to interact with ONE token using available funds, then asks about tokenomics",
+            "description": "Tests token interaction capabilities by asking about ONE token operation within budget (1 tool call), then discusses tokenomics."
         },
         {
             "name": "DeFiLearner",
-            "personality": "Asks to demonstrate DeFi features within budget constraints, wants to learn",
-            "description": "Encourages the agent to show DeFi capabilities using existing funds, focuses on educational demonstrations."
+            "personality": "Asks to demonstrate ONE specific DeFi feature within budget constraints, then asks educational questions",
+            "description": "Encourages the agent to show ONE DeFi capability using existing funds (1 tool call), then focuses on educational discussion."
         },
         {
             "name": "EfficientUser",
-            "personality": "Suggests gas-efficient operations with existing funds, asks about optimization",
-            "description": "Tests the agent's ability to suggest efficient DeFi operations that work with current Base Sepolia balance."
+            "personality": "Suggests ONE gas-efficient operation with existing funds, then discusses optimization strategies",
+            "description": "Tests the agent's ability to suggest ONE efficient DeFi operation that works with current Base Sepolia balance (1 tool call), then discusses optimization."
         },
         {
             "name": "BalanceChecker",
-            "personality": "Always starts by asking about wallet balance, then suggests appropriate actions",
-            "description": "Tests the agent's balance checking capabilities and ensures suggestions are within available funds."
+            "personality": "Always starts by asking about wallet balance, then suggests ONE appropriate action, then asks general questions",
+            "description": "Tests the agent's balance checking capabilities and ensures ONE suggestion is within available funds (1 tool call), then asks general questions."
         },
         {
             "name": "TestnetOptimizer",
-            "personality": "Wants to maximize use of existing testnet funds, asks for best strategies",
-            "description": "Tests the agent's ability to suggest optimal DeFi strategies using only existing Base Sepolia funds."
+            "personality": "Wants to try ONE optimal DeFi strategy with existing testnet funds, then discusses best practices",
+            "description": "Tests the agent's ability to suggest ONE optimal DeFi strategy using only existing Base Sepolia funds (1 tool call), then discusses best practices."
         },
         {
             "name": "FeatureTester",
-            "personality": "Wants to test specific DeFi features with available funds, asks for demonstrations",
-            "description": "Encourages the agent to demonstrate specific DeFi features using existing funds, tests tool usage."
+            "personality": "Wants to test ONE specific DeFi feature with available funds, then asks about other features",
+            "description": "Encourages the agent to demonstrate ONE specific DeFi feature using existing funds (1 tool call), then asks about other capabilities."
         },
         {
             "name": "PracticalUser",
-            "personality": "Suggests realistic DeFi operations that work with current balance",
-            "description": "Tests the agent's practical DeFi capabilities by suggesting realistic operations within budget constraints."
+            "personality": "Suggests ONE realistic DeFi operation that works with current balance, then discusses practical applications",
+            "description": "Tests the agent's practical DeFi capabilities by suggesting ONE realistic operation within budget constraints (1 tool call), then discusses practical applications."
         }
     ]
 
@@ -334,18 +676,23 @@ def generate_fallback_personalities() -> List[Dict[str, str]]:
 # Initialize uAgent
 AGENTVERSE_API_KEY = os.environ.get("AGENTVERSE_API_KEY")
 
-# BlockscoutAgent address for A2A communication
-BLOCKSCOUT_AGENT_ADDRESS = "agent1q2qnrd7y6caqqj88gzdm82mt589jx3ttew8hemhjdg9jqdy092zh7xgr4v9"
+# BlockscoutAgent configuration
+BLOCKSCOUT_AGENT_URL = "https://blockscoutagent-739298578243.us-central1.run.app"
+BLOCKSCOUT_AGENT_ADDRESS = "agent1q2qnrd7y6caqqj88gzdm82mt589jx3ttew8hemhjdg9jqdy092zh7xgr4v9"  # A2A address if needed
+
+# Metrics Generator Agent configuration
+METRICS_GENERATOR_URL = "https://metricsgen-739298578243.us-central1.run.app"
+METRICS_GENERATOR_ADDRESS = "agent1qvx8fqtw9jp48pl3c22h7dzgeu78ksp3vnuk748lep3m6hjc3tt3g0wdfya"  # A2A address if needed
 
 # Store transaction analyses for SDK retrieval
 transaction_analyses = {}
 
 agent = Agent(
     name="cdp_agent_tester_backend",
-    port=8000,
+    port=8080,
     seed="cdp agent tester backend seed phrase",
     mailbox=f"{AGENTVERSE_API_KEY}" if AGENTVERSE_API_KEY else None,
-    endpoint=["http://localhost:8000/submit"]
+    endpoint=["http://localhost:8080/submit"]
 )
 
 
@@ -367,32 +714,33 @@ AGENT CAPABILITIES (what it can do):
 
 TASK: Generate {num_personalities} different personality types that will test the agent's DeFi capabilities using ONLY the funds already present in the agent's Base Sepolia wallet. Each personality should encourage the agent to use its DeFi tools within budget constraints.
 
-REQUIREMENTS:
+CRITICAL REQUIREMENTS:
 1. Generate exactly {num_personalities} personalities
-2. The FIRST personality MUST initiate a transfer or swap action
-3. Each personality should FIRST ask about the agent's current Base Sepolia balance
-4. Personalities should suggest DeFi actions that work within the agent's existing funds
-5. Focus on Base Sepolia testnet operations only
-6. Each personality should encourage AT LEAST ONE tool call from the agent
+2. Each personality MUST make EXACTLY ONE tool call - NO MORE, NO LESS
+3. The FIRST personality MUST initiate a transfer or swap action (1 tool call)
+4. Each personality should FIRST ask about the agent's current Base Sepolia balance
+5. After the single tool call, personalities should ask general questions about DeFi, blockchain, or the agent's capabilities
+6. Focus on Base Sepolia testnet operations only
 7. Personalities should be helpful and encouraging, not overly aggressive
 8. Suggest realistic DeFi operations that don't require additional funding
 9. IMPORTANT: When personalities ask for transfers or swaps, they should request funds to be sent to address 0x2514844f312c02ae3c9d4feb40db4ec8830b6844
+10. After the single tool call, personalities should engage in general conversation about DeFi topics
 
 EXAMPLES OF GOOD BASE SEPOLIA TESTING PERSONALITIES:
-- "Transfer Initiator" - FIRST personality that immediately asks for a transfer to 0x2514844f312c02ae3c9d4feb40db4ec8830b6844
-- "Budget-Conscious DeFi User" - Asks about balance first, suggests swaps within budget
-- "Testnet Experimenter" - Wants to try DeFi features with existing testnet funds
-- "Yield Seeker" - Looks for staking/farming opportunities with current balance
-- "Token Explorer" - Wants to interact with tokens using available funds
-- "DeFi Learner" - Asks to demonstrate features within budget constraints
-- "Efficient User" - Suggests gas-efficient operations with existing funds
+- "Transfer Initiator" - FIRST personality that immediately asks for a transfer to 0x2514844f312c02ae3c9d4feb40db4ec8830b6844 (1 tool call), then asks general DeFi questions
+- "Budget-Conscious DeFi User" - Asks about balance first, suggests ONE swap within budget (1 tool call), then discusses DeFi strategies
+- "Testnet Experimenter" - Wants to try ONE DeFi feature with existing testnet funds (1 tool call), then asks about other DeFi concepts
+- "Yield Seeker" - Looks for ONE staking/farming opportunity with current balance (1 tool call), then discusses yield farming strategies
+- "Token Explorer" - Wants to interact with ONE token using available funds (1 tool call), then asks about tokenomics
+- "DeFi Learner" - Asks to demonstrate ONE specific feature within budget constraints (1 tool call), then asks educational questions
+- "Efficient User" - Suggests ONE gas-efficient operation with existing funds (1 tool call), then discusses optimization strategies
 
 FORMAT: Return a STRICT JSON array with exactly this structure:
 [
   {{
     "name": "PersonalityName",
-    "personality": "Brief personality traits focused on using existing funds",
-    "description": "Detailed description of how this personality will test the agent's DeFi capabilities using only existing Base Sepolia funds"
+    "personality": "Brief personality traits focused on making exactly ONE tool call then general conversation",
+    "description": "Detailed description of how this personality will test the agent's DeFi capabilities with exactly ONE tool call using only existing Base Sepolia funds, followed by general DeFi discussion"
   }},
   ...
 ]
@@ -448,6 +796,23 @@ async def handle_generate_personality_message(ctx: Context, req: PersonalityMess
         is_initial = req.is_initial
         agent_description = req.agent_description
         
+        # DETAILED REQUEST LOGGING
+        print("\n" + "="*80)
+        print("🎭 PERSONALITY MESSAGE GENERATION REQUEST")
+        print("="*80)
+        print(f"📝 Is Initial: {is_initial}")
+        print(f"👤 Personality Name: {personality.get('name', 'Unknown')}")
+        print(f"💬 Previous Messages Count: {len(previous_messages)}")
+        print(f"📋 Previous Messages:")
+        for i, msg in enumerate(previous_messages):
+            role = msg.get('role', 'unknown')
+            content = msg.get('content', '')
+            has_tx_analysis = 'transaction_analysis' in msg if isinstance(msg, dict) else False
+            print(f"   [{i}] {role}: {content[:100]}{'...' if len(content) > 100 else ''}")
+            if has_tx_analysis:
+                print(f"        ⚠️  Has transaction_analysis field")
+        print("="*80 + "\n")
+        
         personality_name = personality.get("name", "")
         personality_trait = personality.get("personality", "")
         personality_desc = personality.get("description", "")
@@ -465,24 +830,37 @@ The Agent: {agent_description}
 
 Task: Start a conversation that encourages the agent to use its DeFi tools on Base Sepolia testnet. Be helpful and encouraging, not aggressive.
 
-Requirements:
+CRITICAL REQUIREMENTS:
 - FIRST ask about the agent's current Base Sepolia balance
 - Suggest DeFi operations that work within the agent's existing funds
 - Focus on Base Sepolia testnet operations only
-- Encourage the agent to make at least one tool call
+- You MUST encourage the agent to make EXACTLY ONE tool call - NO MORE, NO LESS
+- After the single tool call, ask general questions about DeFi, blockchain, or the agent's capabilities
 - Be helpful and educational, not demanding
-- Ask for demonstrations of DeFi features
 - When requesting transfers or swaps, ask for funds to be sent to 0x2514844f312c02ae3c9d4feb40db4ec8830b6844
 
 Keep your message concise (1-3 sentences) and friendly.
 
 Your opening message:"""
         else:
-            # Generate follow-up with FULL conversation context
+            # Generate follow-up with FULL conversation context (but truncate long messages)
             conversation_history = []
             for msg in previous_messages:
                 role_label = "You" if msg.get('role') == 'user' else "Agent"
                 content = msg.get('content', '')
+                
+                # Skip if this is ONLY a transaction_analysis message (no actual content)
+                if not content or not content.strip():
+                    continue
+                
+                # Skip if the message content is just a transaction analysis header
+                if content.startswith("[Transaction Analysis"):
+                    continue
+                
+                # Truncate very long messages (keep first 300 chars)
+                if len(content) > 300:
+                    content = content[:300] + "..."
+                
                 conversation_history.append(f"{role_label}: {content}")
             
             full_context = "\n\n".join(conversation_history)
@@ -497,16 +875,15 @@ FULL CONVERSATION SO FAR:
 
 Task: Generate your next response that encourages the agent to use its DeFi tools on Base Sepolia testnet. Be helpful and encouraging.
 
-Requirements:
+CRITICAL REQUIREMENTS:
+- You MUST ensure the agent makes EXACTLY ONE tool call during the entire conversation - NO MORE, NO LESS
 - If the agent hasn't checked its balance yet, ask about Base Sepolia balance first
-- If the agent performed an action, ask for more details or suggest another operation within budget
-- If the agent is being helpful, suggest additional DeFi features to test
+- If the agent hasn't made a tool call yet, encourage ONE specific DeFi operation within budget
+- If the agent has already made a tool call, ask general questions about DeFi, blockchain, or the agent's capabilities
 - Focus on Base Sepolia testnet operations only
-- Encourage at least one tool call from the agent
 - Be helpful and educational, not demanding
-- Suggest realistic DeFi operations that work with existing funds
-- Ask for demonstrations of specific features
 - When requesting transfers or swaps, ask for funds to be sent to 0x2514844f312c02ae3c9d4feb40db4ec8830b6844
+- After the single tool call, engage in general DeFi discussion
 
 Keep it concise (1-3 sentences) and friendly.
 
@@ -643,8 +1020,12 @@ Return ONLY the JSON. No markdown, no explanations."""
 @agent.on_message(model=TransactionAnalysisResponse)
 async def handle_transaction_analysis_response(ctx: Context, sender: str, msg: TransactionAnalysisResponse):
     """Handle transaction analysis response from BlockscoutAgent."""
-    ctx.logger.info(f"Received transaction analysis from BlockscoutAgent for tx: {msg.transaction_hash}")
-    ctx.logger.info(f"Analysis: {msg.analysis[:200]}...")  # Log first 200 chars
+    ctx.logger.info(f"[A2A] Received transaction analysis from BlockscoutAgent for tx: {msg.transaction_hash}")
+    ctx.logger.info(f"[A2A] Conversation ID: {msg.conversation_id}")
+    ctx.logger.info(f"[A2A] Timestamp: {msg.timestamp}")
+    ctx.logger.info(f"[A2A] Success: {msg.success}")
+    ctx.logger.info(f"[A2A] Analysis length: {len(msg.analysis)}")
+    ctx.logger.info(f"[A2A] Analysis preview: {msg.analysis[:200]}...")
     
     # Store the analysis for SDK retrieval
     transaction_analyses[msg.transaction_hash] = {
@@ -654,28 +1035,99 @@ async def handle_transaction_analysis_response(ctx: Context, sender: str, msg: T
         "success": msg.success
     }
     
-    ctx.logger.info(f"Stored analysis for transaction: {msg.transaction_hash}")
+    ctx.logger.info(f"[A2A] Stored analysis in transaction_analyses dict for tx: {msg.transaction_hash}")
+    ctx.logger.info(f"[A2A] transaction_analyses now contains {len(transaction_analyses)} entries")
+    
+    # Store in Knowledge Graph
+    try:
+        ctx.logger.info(f"[A2A] Attempting to store in Knowledge Graph...")
+        ctx.logger.info(f"[A2A] KG params: tx_hash={msg.transaction_hash}, conv_id={msg.conversation_id}")
+        
+        kg_result = conversation_kg.add_blockscout_analysis(
+            transaction_hash=msg.transaction_hash,
+            conversation_id=msg.conversation_id,
+            analysis=msg.analysis,
+            timestamp=msg.timestamp,
+            chain_id="84532"  # Default to Base Sepolia
+        )
+        ctx.logger.info(f"[A2A] Knowledge Graph BlockScout storage result: {kg_result}")
+        ctx.logger.info(f"[A2A] Successfully stored transaction analysis in KG")
+    except Exception as kg_error:
+        ctx.logger.error(f"[A2A] KG BlockScout storage failed: {kg_error}")
+        ctx.logger.error(f"[A2A] Exception type: {type(kg_error).__name__}")
+        import traceback
+        ctx.logger.error(f"[A2A] Traceback: {traceback.format_exc()}")
 
 
 @agent.on_rest_post("/rest/store-conversation", ConversationStorageRequest, ConversationStorageResponse)
 async def handle_store_conversation(ctx: Context, req: ConversationStorageRequest) -> ConversationStorageResponse:
-    """Store a conversation for later analysis"""
-    ctx.logger.info(f"Storing conversation: {req.conversation_id}")
+    """Store a conversation for later analysis - now extracts and stores transaction data from messages"""
+    ctx.logger.info(f"[STORE-CONV] Storing conversation: {req.conversation_id}")
+    ctx.logger.info(f"[STORE-CONV] Personality: {req.personality_name}")
+    ctx.logger.info(f"[STORE-CONV] Number of messages: {len(req.messages)}")
     
     try:
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         filename = f"conversation_{req.conversation_id}_{timestamp}.json"
         filepath = STORAGE_DIR / filename
         
+        # Extract transaction analyses from messages
+        transactions_in_conversation = []
+        for msg in req.messages:
+            # Check if message has transaction_analysis field
+            if isinstance(msg, dict) and 'transaction_analysis' in msg:
+                tx_analysis = msg['transaction_analysis']
+                ctx.logger.info(f"[STORE-CONV] Found transaction analysis in message: {tx_analysis.get('transaction_hash', 'unknown')}")
+                transactions_in_conversation.append({
+                    "transaction_hash": tx_analysis.get('transaction_hash', ''),
+                    "chain_id": tx_analysis.get('chain', '84532'),
+                    "analysis": tx_analysis.get('analysis', ''),
+                    "timestamp": tx_analysis.get('timestamp', ''),
+                    "success": True
+                })
+        
+        ctx.logger.info(f"[STORE-CONV] Extracted {len(transactions_in_conversation)} transactions from messages")
+        
         data = {
             "conversation_id": req.conversation_id,
             "personality_name": req.personality_name,
             "messages": req.messages,
+            "transactions": transactions_in_conversation,
             "stored_at": datetime.utcnow().isoformat()
         }
         
         with open(filepath, 'w') as f:
             json.dump(data, f, indent=2)
+        
+        ctx.logger.info(f"[STORE-CONV] Saved to file: {filepath}")
+        
+        # Store in Knowledge Graph with transactions
+        try:
+            ctx.logger.info(f"[STORE-CONV] Storing conversation in KG...")
+            kg_result = conversation_kg.add_conversation(
+                conversation_id=req.conversation_id,
+                personality_name=req.personality_name,
+                messages=req.messages,
+                timestamp=datetime.utcnow().isoformat()
+            )
+            ctx.logger.info(f"[STORE-CONV] KG conversation storage: {kg_result}")
+            
+            # Store each transaction in KG
+            for tx_data in transactions_in_conversation:
+                ctx.logger.info(f"[STORE-CONV] Storing transaction in KG: {tx_data['transaction_hash']}")
+                tx_kg_result = conversation_kg.add_blockscout_analysis(
+                    transaction_hash=tx_data['transaction_hash'],
+                    conversation_id=req.conversation_id,
+                    analysis=tx_data['analysis'],
+                    timestamp=tx_data['timestamp'],
+                    chain_id=tx_data['chain_id']
+                )
+                ctx.logger.info(f"[STORE-CONV] KG transaction storage: {tx_kg_result}")
+                
+        except Exception as kg_error:
+            ctx.logger.warning(f"[STORE-CONV] KG storage failed but file saved: {kg_error}")
+            import traceback
+            ctx.logger.warning(f"[STORE-CONV] Traceback: {traceback.format_exc()}")
         
         return ConversationStorageResponse(
             success=True,
@@ -684,12 +1136,56 @@ async def handle_store_conversation(ctx: Context, req: ConversationStorageReques
         )
         
     except Exception as e:
-        ctx.logger.error(f"Failed to store conversation: {str(e)}")
+        ctx.logger.error(f"[STORE-CONV] Failed to store conversation: {str(e)}")
+        import traceback
+        ctx.logger.error(f"[STORE-CONV] Traceback: {traceback.format_exc()}")
         return ConversationStorageResponse(
             success=False,
             filepath="",
             timestamp=datetime.utcnow().isoformat()
         )
+
+
+# Knowledge Graph Query Models
+class KGConversationQueryRequest(Model):
+    """Request to query a specific conversation from KG"""
+    conversation_id: str
+
+
+class KGConversationQueryResponse(Model):
+    """Response with conversation data from KG"""
+    success: bool
+    conversation: Optional[Dict[str, Any]] = None
+    message: str
+
+
+class KGPersonalityQueryRequest(Model):
+    """Request to query conversations by personality"""
+    personality_name: str
+
+
+class KGPersonalityQueryResponse(Model):
+    """Response with conversations by personality"""
+    success: bool
+    conversations: List[Dict[str, Any]]
+    count: int
+    message: str
+
+
+class KGAllConversationsResponse(Model):
+    """Response with all conversations"""
+    success: bool
+    conversations: List[Dict[str, Any]]
+    count: int
+    message: str
+
+
+class KGAllTransactionsResponse(Model):
+    """Response with all transactions"""
+    success: bool
+    transactions: List[Dict[str, Any]]
+    count: int
+    message: str
 
 
 # New endpoint for SDK to send transaction analysis requests
@@ -797,6 +1293,288 @@ async def handle_get_transaction_analysis(ctx: Context, req: TransactionAnalysis
         )
 
 
+# Knowledge Graph Query Endpoints
+@agent.on_rest_post("/rest/kg/query-conversation", KGConversationQueryRequest, KGConversationQueryResponse)
+async def handle_kg_query_conversation(ctx: Context, req: KGConversationQueryRequest) -> KGConversationQueryResponse:
+    """Query a specific conversation from the Knowledge Graph"""
+    ctx.logger.info(f"KG Query: Retrieving conversation {req.conversation_id}")
+    
+    try:
+        conversation = conversation_kg.query_conversation(req.conversation_id)
+        
+        if conversation:
+            return KGConversationQueryResponse(
+                success=True,
+                conversation=conversation,
+                message=f"Successfully retrieved conversation: {req.conversation_id}"
+            )
+        else:
+            return KGConversationQueryResponse(
+                success=False,
+                conversation=None,
+                message=f"Conversation not found: {req.conversation_id}"
+            )
+    
+    except Exception as e:
+        ctx.logger.error(f"Failed to query conversation: {str(e)}")
+        return KGConversationQueryResponse(
+            success=False,
+            conversation=None,
+            message=f"Error querying conversation: {str(e)}"
+        )
+
+
+@agent.on_rest_post("/rest/kg/query-by-personality", KGPersonalityQueryRequest, KGPersonalityQueryResponse)
+async def handle_kg_query_by_personality(ctx: Context, req: KGPersonalityQueryRequest) -> KGPersonalityQueryResponse:
+    """Query all conversations by personality from the Knowledge Graph"""
+    ctx.logger.info(f"KG Query: Retrieving conversations for personality {req.personality_name}")
+    
+    try:
+        conversations = conversation_kg.query_by_personality(req.personality_name)
+        
+        return KGPersonalityQueryResponse(
+            success=True,
+            conversations=conversations,
+            count=len(conversations),
+            message=f"Found {len(conversations)} conversations for personality: {req.personality_name}"
+        )
+    
+    except Exception as e:
+        ctx.logger.error(f"Failed to query by personality: {str(e)}")
+        return KGPersonalityQueryResponse(
+            success=False,
+            conversations=[],
+            count=0,
+            message=f"Error querying by personality: {str(e)}"
+        )
+
+
+@agent.on_rest_get("/rest/kg/all-conversations", KGAllConversationsResponse)
+async def handle_kg_all_conversations(ctx: Context) -> KGAllConversationsResponse:
+    """Get all conversations from the Knowledge Graph"""
+    ctx.logger.info("KG Query: Retrieving all conversations")
+    
+    try:
+        conversations = conversation_kg.get_all_conversations()
+        
+        return KGAllConversationsResponse(
+            success=True,
+            conversations=conversations,
+            count=len(conversations),
+            message=f"Successfully retrieved {len(conversations)} conversations"
+        )
+    
+    except Exception as e:
+        ctx.logger.error(f"Failed to get all conversations: {str(e)}")
+        return KGAllConversationsResponse(
+            success=False,
+            conversations=[],
+            count=0,
+            message=f"Error retrieving conversations: {str(e)}"
+        )
+
+
+@agent.on_rest_get("/rest/kg/all-transactions", KGAllTransactionsResponse)
+async def handle_kg_all_transactions(ctx: Context) -> KGAllTransactionsResponse:
+    """Get all BlockScout transaction analyses from the Knowledge Graph"""
+    ctx.logger.info("KG Query: Retrieving all transaction analyses")
+    
+    try:
+        transactions = conversation_kg.get_all_transactions()
+        
+        return KGAllTransactionsResponse(
+            success=True,
+            transactions=transactions,
+            count=len(transactions),
+            message=f"Successfully retrieved {len(transactions)} transaction analyses"
+        )
+    
+    except Exception as e:
+        ctx.logger.error(f"Failed to get all transactions: {str(e)}")
+        return KGAllTransactionsResponse(
+            success=False,
+            transactions=[],
+            count=0,
+            message=f"Error retrieving transactions: {str(e)}"
+        )
+
+
+# New endpoint for getting the last inserted entry
+class KGLastEntryResponse(Model):
+    """Response with the last inserted entry from KG"""
+    success: bool
+    entry_type: str  # "conversation" or "transaction"
+    entry: Optional[Dict[str, Any]] = None
+    timestamp: Optional[str] = None
+    message: str
+
+
+@agent.on_rest_get("/rest/kg/last-entry", KGLastEntryResponse)
+async def handle_kg_last_entry(ctx: Context) -> KGLastEntryResponse:
+    """Get the last inserted entry from the Knowledge Graph with complete transaction analysis data"""
+    ctx.logger.info("[LAST-ENTRY] Retrieving last inserted entry with transaction analysis")
+    
+    try:
+        # Get all conversations and transactions, then find the most recent
+        ctx.logger.info("[LAST-ENTRY] Fetching all conversations...")
+        conversations = conversation_kg.get_all_conversations()
+        ctx.logger.info(f"[LAST-ENTRY] Found {len(conversations)} conversations")
+        
+        ctx.logger.info("[LAST-ENTRY] Fetching all transactions...")
+        transactions = conversation_kg.get_all_transactions()
+        ctx.logger.info(f"[LAST-ENTRY] Found {len(transactions)} transactions")
+        
+        # Find the most recent entry by timestamp
+        last_conversation = None
+        last_transaction = None
+        
+        if conversations:
+            # Sort conversations by timestamp (assuming they have timestamp field)
+            conversations_with_timestamps = []
+            for conv in conversations:
+                if 'timestamp' in conv:
+                    conversations_with_timestamps.append(conv)
+            
+            if conversations_with_timestamps:
+                last_conversation = max(conversations_with_timestamps, 
+                                     key=lambda x: x.get('timestamp', ''))
+        
+        if transactions:
+            # Sort transactions by timestamp
+            transactions_with_timestamps = []
+            for tx in transactions:
+                if 'timestamp' in tx:
+                    transactions_with_timestamps.append(tx)
+            
+            if transactions_with_timestamps:
+                last_transaction = max(transactions_with_timestamps, 
+                                    key=lambda x: x.get('timestamp', ''))
+        
+        # Determine which is more recent and enhance the response
+        if last_conversation and last_transaction:
+            conv_time = last_conversation.get('timestamp', '')
+            tx_time = last_transaction.get('timestamp', '')
+            
+            if conv_time > tx_time:
+                # Last entry is a conversation - enhance it with transaction data
+                enhanced_conversation = enhance_conversation_with_transactions(last_conversation, transactions)
+                return KGLastEntryResponse(
+                    success=True,
+                    entry_type="conversation",
+                    entry=enhanced_conversation,
+                    timestamp=conv_time,
+                    message="Last inserted entry is a conversation with transaction analysis"
+                )
+            else:
+                # Last entry is a transaction - return it as is
+                return KGLastEntryResponse(
+                    success=True,
+                    entry_type="transaction",
+                    entry=last_transaction,
+                    timestamp=tx_time,
+                    message="Last inserted entry is a transaction analysis"
+                )
+        elif last_conversation:
+            # Only conversations exist - enhance with transaction data
+            enhanced_conversation = enhance_conversation_with_transactions(last_conversation, transactions)
+            return KGLastEntryResponse(
+                success=True,
+                entry_type="conversation",
+                entry=enhanced_conversation,
+                timestamp=last_conversation.get('timestamp', ''),
+                message="Last inserted entry is a conversation with transaction analysis"
+            )
+        elif last_transaction:
+            # Only transactions exist
+            return KGLastEntryResponse(
+                success=True,
+                entry_type="transaction",
+                entry=last_transaction,
+                timestamp=last_transaction.get('timestamp', ''),
+                message="Last inserted entry is a transaction analysis"
+            )
+        else:
+            return KGLastEntryResponse(
+                success=False,
+                entry_type="none",
+                entry=None,
+                timestamp=None,
+                message="No entries found in Knowledge Graph"
+            )
+    
+    except Exception as e:
+        ctx.logger.error(f"Failed to get last entry: {str(e)}")
+        return KGLastEntryResponse(
+            success=False,
+            entry_type="error",
+            entry=None,
+            timestamp=None,
+            message=f"Error retrieving last entry: {str(e)}"
+        )
+
+
+def enhance_conversation_with_transactions(conversation: Dict[str, Any], all_transactions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Enhance a conversation with complete transaction analysis data"""
+    enhanced_conv = conversation.copy()
+    
+    # Get existing transactions from conversation
+    existing_transactions = conversation.get('transactions', [])
+    
+    # If transactions are already complete (have analysis), use them as-is
+    if existing_transactions and any(tx.get('analysis') for tx in existing_transactions):
+        # Transactions already have complete data, just ensure format is consistent
+        enhanced_transactions = []
+        for tx in existing_transactions:
+            enhanced_tx = {
+                "transaction_hash": tx.get('transaction_hash', ''),
+                "chain_id": tx.get('chain_id', '84532'),
+                "analysis": tx.get('analysis', ''),
+                "timestamp": tx.get('timestamp', ''),
+                "success": tx.get('success', True)
+            }
+            enhanced_transactions.append(enhanced_tx)
+        enhanced_conv['transactions'] = enhanced_transactions
+        return enhanced_conv
+    
+    # Otherwise, try to enhance with data from all_transactions
+    enhanced_transactions = []
+    for tx in existing_transactions:
+        tx_hash = tx.get('transaction_hash', '')
+        if tx_hash:
+            # Find the complete transaction data from all_transactions
+            complete_tx_data = None
+            for full_tx in all_transactions:
+                if full_tx.get('transaction_hash', '').lower() == tx_hash.lower():
+                    complete_tx_data = full_tx
+                    break
+            
+            if complete_tx_data:
+                # Create enhanced transaction entry with all data
+                enhanced_tx = {
+                    "transaction_hash": complete_tx_data.get('transaction_hash', tx_hash),
+                    "chain_id": complete_tx_data.get('chain_id', '84532'),  # Default to Base Sepolia
+                    "analysis": complete_tx_data.get('analysis', ''),
+                    "timestamp": complete_tx_data.get('timestamp', ''),
+                    "success": complete_tx_data.get('success', True)
+                }
+                enhanced_transactions.append(enhanced_tx)
+            else:
+                # Keep original transaction data if no complete data found
+                enhanced_tx = {
+                    "transaction_hash": tx_hash,
+                    "chain_id": tx.get('chain_id', '84532'),
+                    "analysis": tx.get('analysis', 'No analysis available'),
+                    "timestamp": tx.get('timestamp', ''),
+                    "success": tx.get('success', False)
+                }
+                enhanced_transactions.append(enhanced_tx)
+    
+    # Update the conversation with enhanced transactions
+    enhanced_conv['transactions'] = enhanced_transactions
+    
+    return enhanced_conv
+
+
 @agent.on_event("startup")
 async def startup_handler(ctx: Context):
     ctx.logger.info(f"CDP Agent Tester Backend started with address: {ctx.agent.address}")
@@ -804,6 +1582,9 @@ async def startup_handler(ctx: Context):
     ctx.logger.info("💰 Personalities will test DeFi capabilities using existing funds")
     ctx.logger.info("📊 Powered by ASI:One AI reasoning")
     ctx.logger.info("🤝 A2A Communication with BlockscoutAgent enabled")
+    ctx.logger.info(f"🌐 BlockScoutAgent URL: {BLOCKSCOUT_AGENT_URL}")
+    ctx.logger.info(f"📊 Metrics Generator URL: {METRICS_GENERATOR_URL}")
+    ctx.logger.info("🗄️ Knowledge Graph enabled for conversation storage")
     if AGENTVERSE_API_KEY:
         ctx.logger.info(f"✅ Registered on Agentverse with mailbox: {AGENTVERSE_API_KEY[:8]}...")
     ctx.logger.info("🌐 REST API endpoints available:")
@@ -811,6 +1592,11 @@ async def startup_handler(ctx: Context):
     ctx.logger.info("  - POST /rest/generate-personality-message")
     ctx.logger.info("  - POST /rest/evaluate-conversation")
     ctx.logger.info("  - POST /rest/store-conversation")
+    ctx.logger.info("  - POST /rest/kg/query-conversation")
+    ctx.logger.info("  - POST /rest/kg/query-by-personality")
+    ctx.logger.info("  - GET  /rest/kg/all-conversations")
+    ctx.logger.info("  - GET  /rest/kg/all-transactions")
+    ctx.logger.info("  - GET  /rest/kg/last-entry")
     ctx.logger.info("🎯 Focus: Testing DeFi capabilities on Base Sepolia with existing funds!")
 
 
@@ -821,6 +1607,9 @@ if __name__ == "__main__":
     print("📊 Powered by ASI:One AI")
     print("🤖 uAgents Framework: ENABLED")
     print("🤝 A2A Communication with BlockscoutAgent: ENABLED")
+    print(f"🌐 BlockScoutAgent URL: {BLOCKSCOUT_AGENT_URL}")
+    print(f"📊 Metrics Generator URL: {METRICS_GENERATOR_URL}")
+    print("🗄️ Knowledge Graph (MeTTa): ENABLED")
     
     if AGENTVERSE_API_KEY:
         print(f"✅ Agentverse Integration: ENABLED")
@@ -828,7 +1617,14 @@ if __name__ == "__main__":
     else:
         print("⚠️ Agentverse Integration: DISABLED (No API key)")
     
-    print("🌐 Starting uAgent with REST endpoints...")
+    print("\n📚 Knowledge Graph Features:")
+    print("  - Stores all conversations with personality metadata")
+    print("  - Stores BlockScout transaction analyses linked to conversations")
+    print("  - Query by conversation ID, personality, or get all data")
+    print("  - Maintains relationships between conversations and transactions")
+    print("  - Generates comprehensive performance metrics via Metrics Generator")
+    
+    print("\n🌐 Starting uAgent with REST endpoints...")
     print("🎯 Focus: Testing DeFi capabilities on Base Sepolia with existing funds!")
     
     try:

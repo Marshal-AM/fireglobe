@@ -24,7 +24,7 @@ npm install @cdp-agentkit/agent-tester
 
 **The SDK uses a hosted backend by default!**
 
-✅ **Backend URL:** `https://fireglobe-backend.onrender.com`  
+✅ **Backend URL:** `https://backend-739298578243.us-central1.run.app`  
 ✅ **No Python installation needed**  
 ✅ **No API keys required**  
 ✅ **Just install and use!**
@@ -73,7 +73,7 @@ import { AgentTester } from "@cdp-agentkit/agent-tester";
 const tester = new AgentTester({
   agentDescription: "A DeFi agent that helps users with lending and borrowing",
   // backendUrl is optional - uses hosted backend by default
-  // backendUrl: "https://fireglobe-backend.onrender.com"
+  // backendUrl: "https://backend-739298578243.us-central1.run.app"
 });
 
 // Add event listeners for real-time updates
@@ -301,6 +301,6 @@ Contributions welcome! Please open an issue or PR on GitHub.
 ## 📞 Support
 
 - **Issues**: Open an issue on GitHub
-- **Hosted Backend**: https://fireglobe-backend.onrender.com
+- **Hosted Backend**: https://backend-739298578243.us-central1.run.app
 - **Documentation**: See README and guides in repository
 

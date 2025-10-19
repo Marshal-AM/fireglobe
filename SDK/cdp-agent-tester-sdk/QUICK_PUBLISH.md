@@ -37,7 +37,7 @@ npm install @cdp-agentkit/agent-tester
 
 ## 🎯 What's Configured
 
-✅ **Backend**: https://fireglobe-backend.onrender.com  
+✅ **Backend**: https://backend-739298578243.us-central1.run.app  
 ✅ **Default URL**: Built into SDK  
 ✅ **Zero Setup**: Users just `npm install` and use!  
 ✅ **Package Name**: `@cdp-agentkit/agent-tester`  

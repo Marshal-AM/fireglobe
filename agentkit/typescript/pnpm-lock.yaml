@@ -266,8 +266,8 @@ importers:
         specifier: ^0.3.14
         version: 0.3.17(@langchain/core@0.3.30(openai@4.89.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2)))(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))
       cdp-agent-tester:
-        specifier: ^1.4.1
-        version: 1.4.1(@langchain/core@0.3.30(openai@4.89.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2)))(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+        specifier: ^1.6.1
+        version: 1.6.1(@langchain/core@0.3.30(openai@4.89.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2)))(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       dotenv:
         specifier: ^16.4.5
         version: 16.4.7
@@ -2907,8 +2907,8 @@ packages:
     resolution: {integrity: sha512-F705O3xrsUtgt98j7leetNhTWPe+5S72rlL5O4jA1pKqBVQ/dT1O1D6PFxmSXvc0SUOinWS57DKx0I3CHrXJHQ==}
     hasBin: true
 
-  cdp-agent-tester@1.4.1:
-    resolution: {integrity: sha512-9RxscXu/B1dp9670+NEyUAmAJ/k9jQ7sKyKfx30p5D7eMtdPNO611mB2HrQL8WYnb0UGxl00GRO2hcMTFpdU7Q==}
+  cdp-agent-tester@1.6.1:
+    resolution: {integrity: sha512-QjI5QdLmII8ywe7O+bt1wB0SsNQyTIorA5H8jTqk+HjWTZ8NT926Lq+FhXjyFxQ3UDKwYP64CKFEQTLprA08AA==}
     peerDependencies:
       '@langchain/core': '>=0.1.0'
     peerDependenciesMeta:
@@ -10488,7 +10488,7 @@ snapshots:
 
   canonicalize@2.1.0: {}
 
-  cdp-agent-tester@1.4.1(@langchain/core@0.3.30(openai@4.89.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2)))(bufferutil@4.0.9)(utf-8-validate@5.0.10):
+  cdp-agent-tester@1.6.1(@langchain/core@0.3.30(openai@4.89.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2)))(bufferutil@4.0.9)(utf-8-validate@5.0.10):
     dependencies:
       axios: 1.12.2
       uuid: 9.0.1

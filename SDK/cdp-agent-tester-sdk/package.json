@@ -1,7 +1,7 @@
 {
   "name": "cdp-agent-tester",
-  "version": "1.4.1",
-  "description": "Universal testing SDK for CDP AgentKit agents using AI-generated personalities. Test any agent with 10 AI personalities - no backend setup required! Now with automatic transaction detection, real-time BlockscoutAgent analysis display, infinite polling (no timeouts), and intelligent conversation flow management.",
+  "version": "1.6.1",
+  "description": "Universal testing SDK for CDP AgentKit agents using AI-generated personalities with comprehensive metrics generation. Test any agent with 10 AI personalities - no backend setup required! Features automatic transaction detection, real-time BlockscoutAgent analysis, intelligent conversation flow, deployed backend integration, and deployed Metrics Generator with comprehensive performance metrics.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "homepage": "https://github.com/yourusername/cdp-agent-tester-sdk#readme",

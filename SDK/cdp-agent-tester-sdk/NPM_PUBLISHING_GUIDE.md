@@ -3,7 +3,7 @@
 ## ✅ Pre-Flight Checklist
 
 Before publishing, ensure:
-- [x] Backend deployed at `https://fireglobe-backend.onrender.com`
+- [x] Backend deployed at `https://backend-739298578243.us-central1.run.app`
 - [x] SDK configured to use hosted backend
 - [ ] GitHub repository created and code pushed
 - [ ] npm account created
@@ -369,7 +369,7 @@ Topics:
 ## ✅ You're Ready!
 
 Your SDK is configured to:
-- ✅ Use hosted backend (https://fireglobe-backend.onrender.com)
+- ✅ Use hosted backend (https://backend-739298578243.us-central1.run.app)
 - ✅ Zero setup for users
 - ✅ Ready for npm publishing
 - ✅ Professional package structure
