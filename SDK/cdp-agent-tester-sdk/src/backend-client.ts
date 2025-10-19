@@ -35,7 +35,7 @@ export class BackendClient {
       const response = await this.client.post<{
         success: boolean;
         personalities: Personality[];
-      }>("/generate-personalities", {
+      }>("/rest/generate-personalities", {
         agent_description: agentDescription,
         agent_capabilities: agentCapabilities,
         num_personalities: numPersonalities,
@@ -67,7 +67,7 @@ export class BackendClient {
   ): Promise<EvaluationResult> {
     try {
       const response = await this.client.post<EvaluationResult>(
-        "/evaluate-conversation",
+        "/rest/evaluate-conversation",
         {
           personality_name: personalityName,
           personality,
@@ -96,7 +96,7 @@ export class BackendClient {
     messages: Array<{ role: string; content: string; timestamp: Date }>
   ): Promise<void> {
     try {
-      await this.client.post("/store-conversation", {
+      await this.client.post("/rest/store-conversation", {
         conversation_id: conversationId,
         personality_name: personalityName,
         messages: messages.map((m) => ({
@@ -125,7 +125,7 @@ export class BackendClient {
   ): Promise<string> {
     try {
       const response = await this.client.post<{ message: string }>(
-        "/generate-personality-message",
+        "/rest/generate-personality-message",
         {
           personality,
           previous_messages: previousMessages,
@@ -141,18 +141,6 @@ export class BackendClient {
         );
       }
       throw error;
-    }
-  }
-
-  /**
-   * Check if backend is healthy
-   */
-  async healthCheck(): Promise<boolean> {
-    try {
-      const response = await this.client.get("/health");
-      return response.data.status === "healthy";
-    } catch {
-      return false;
     }
   }
 }

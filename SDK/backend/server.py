@@ -1,55 +1,19 @@
 """
 CDP Agent Tester Backend - uAgents Framework Integration
 Handles personality generation, conversation evaluation, and storage
-Registered on Agentverse for decentralized access
 """
 
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from uagents import Context, Model, Agent
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timezone
-from uuid import uuid4
+from datetime import datetime
 import json
 import os
 import requests
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Try to import uagents, but make it optional for deployment
-try:
-    from uagents import Context, Model, Protocol, Agent
-    from uagents_core.contrib.protocols.chat import (
-        ChatAcknowledgement,
-        ChatMessage,
-        EndSessionContent,
-        StartSessionContent,
-        TextContent,
-        chat_protocol_spec,
-    )
-    UAGENTS_AVAILABLE = True
-except ImportError:
-    UAGENTS_AVAILABLE = False
-    print("⚠️ uAgents not available - running in standalone FastAPI mode")
-
 # Load environment variables
 load_dotenv()
-
-# Initialize FastAPI
-app = FastAPI(
-    title="CDP Agent Tester Backend",
-    description="AI-powered testing backend for CDP AgentKit agents with uAgents integration",
-    version="1.0.0"
-)
-
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # ASI:One API configuration
 ASI_ONE_API_KEY = os.environ.get("ASI_ONE_API_KEY")
@@ -105,39 +69,50 @@ class LLM:
             raise Exception(f"LLM completion failed: {str(e)}")
 
 
-# Models
-class Personality(BaseModel):
+# uAgents Models
+class PersonalityData(Model):
     name: str
     personality: str
     description: str
 
 
-class PersonalityGenerationRequest(BaseModel):
-    agent_description: str = Field(..., description="Description of the agent being tested")
-    agent_capabilities: str = Field(..., description="What the agent is capable of doing")
-    num_personalities: int = Field(default=5, description="Number of personalities to generate")
+class PersonalityGenerationRequest(Model):
+    agent_description: str
+    agent_capabilities: str
+    num_personalities: int
 
 
-class PersonalityGenerationResponse(BaseModel):
+class PersonalityGenerationResponse(Model):
     success: bool
-    personalities: List[Personality]
+    personalities: List[Dict[str, str]]
     timestamp: str
 
 
-class ConversationMessage(BaseModel):
+class MessageData(Model):
     role: str
     content: str
     timestamp: Optional[str] = None
 
 
-class ConversationEvaluationRequest(BaseModel):
+class PersonalityMessageRequest(Model):
+    personality: Dict[str, str]
+    previous_messages: List[Dict[str, str]]
+    is_initial: bool
+    agent_description: str
+
+
+class PersonalityMessageResponse(Model):
+    message: str
+
+
+class ConversationEvaluationRequest(Model):
     personality_name: str
     personality: str
     description: str
-    messages: List[ConversationMessage]
+    messages: List[Dict[str, Any]]
 
 
-class EvaluationCriteria(BaseModel):
+class EvaluationCriteriaData(Model):
     helpfulness: int
     accuracy: int
     relevance: int
@@ -145,21 +120,27 @@ class EvaluationCriteria(BaseModel):
     technicalDepth: int
 
 
-class EvaluationResult(BaseModel):
+class EvaluationResult(Model):
     conversationId: str
     personalityName: str
     score: int
-    criteria: EvaluationCriteria
+    criteria: Dict[str, int]
     strengths: List[str]
     weaknesses: List[str]
     overallFeedback: str
     timestamp: str
 
 
-class ConversationStorageRequest(BaseModel):
+class ConversationStorageRequest(Model):
     conversation_id: str
     personality_name: str
-    messages: List[ConversationMessage]
+    messages: List[Dict[str, Any]]
+
+
+class ConversationStorageResponse(Model):
+    success: bool
+    filepath: str
+    timestamp: str
 
 
 # Helper functions
@@ -245,26 +226,33 @@ def generate_fallback_personalities() -> List[Dict[str, str]]:
     ]
 
 
-# Endpoints
-@app.get("/health")
-@app.head("/health")
-async def health_check():
-    """Health check endpoint - supports GET and HEAD methods"""
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+# Initialize uAgent
+AGENTVERSE_API_KEY = os.environ.get("AGENTVERSE_API_KEY")
+
+agent = Agent(
+    name="cdp_agent_tester_backend",
+    port=8000,
+    seed="cdp agent tester backend seed phrase",
+    mailbox=f"{AGENTVERSE_API_KEY}" if AGENTVERSE_API_KEY else None,
+    endpoint=["http://localhost:8000/submit"]
+)
 
 
-@app.post("/generate-personalities", response_model=PersonalityGenerationResponse)
-async def generate_personalities(request: PersonalityGenerationRequest):
+# uAgents REST Endpoints
+@agent.on_rest_post("/rest/generate-personalities", PersonalityGenerationRequest, PersonalityGenerationResponse)
+async def handle_generate_personalities(ctx: Context, req: PersonalityGenerationRequest) -> PersonalityGenerationResponse:
     """Generate personalities tailored to test specific agent capabilities"""
+    ctx.logger.info(f"Received personality generation request for {req.num_personalities} personalities")
+    
     try:
-        num_personalities = request.num_personalities
+        num_personalities = req.num_personalities
         prompt = f"""You are an expert at creating test personas for AI agents. Generate exactly {num_personalities} distinct personality types that would effectively test this specific agent's capabilities.
 
 AGENT TO TEST:
-Description: {request.agent_description}
+Description: {req.agent_description}
 
 AGENT CAPABILITIES (what it can do):
-{request.agent_capabilities}
+{req.agent_capabilities}
 
 TASK: Generate {num_personalities} different personality types that will specifically test the agent's stated capabilities. Each personality should be designed to interact with and test one or more of the agent's specific functions.
 
@@ -311,40 +299,37 @@ CRITICAL: Return ONLY the JSON array. No additional text, no explanations, no ma
             personalities_data = json.loads(cleaned_response)
             
             if not isinstance(personalities_data, list) or len(personalities_data) != num_personalities:
-                print(f"Warning: Expected {num_personalities} personalities, using fallback")
+                ctx.logger.warning(f"Expected {num_personalities} personalities, using fallback")
                 personalities_data = generate_fallback_personalities()[:num_personalities]
         except json.JSONDecodeError:
-            print(f"JSON parsing error, using fallback personalities")
+            ctx.logger.warning("JSON parsing error, using fallback personalities")
             personalities_data = generate_fallback_personalities()[:num_personalities]
-        
-        # Convert to Personality objects
-        personalities = [
-            Personality(
-                name=p["name"],
-                personality=p["personality"],
-                description=p["description"]
-            )
-            for p in personalities_data
-        ]
         
         return PersonalityGenerationResponse(
             success=True,
-            personalities=personalities,
+            personalities=personalities_data,
             timestamp=datetime.utcnow().isoformat()
         )
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate personalities: {str(e)}")
+        ctx.logger.error(f"Failed to generate personalities: {str(e)}")
+        return PersonalityGenerationResponse(
+            success=False,
+            personalities=generate_fallback_personalities()[:req.num_personalities],
+            timestamp=datetime.utcnow().isoformat()
+        )
 
 
-@app.post("/generate-personality-message")
-async def generate_personality_message_endpoint(request: dict):
+@agent.on_rest_post("/rest/generate-personality-message", PersonalityMessageRequest, PersonalityMessageResponse)
+async def handle_generate_personality_message(ctx: Context, req: PersonalityMessageRequest) -> PersonalityMessageResponse:
     """Generate a natural message from a personality based on full conversation context"""
+    ctx.logger.info("Received personality message generation request")
+    
     try:
-        personality = request.get("personality", {})
-        previous_messages = request.get("previous_messages", [])
-        is_initial = request.get("is_initial", False)
-        agent_description = request.get("agent_description", "")
+        personality = req.personality
+        previous_messages = req.previous_messages
+        is_initial = req.is_initial
+        agent_description = req.agent_description
         
         personality_name = personality.get("name", "")
         personality_trait = personality.get("personality", "")
@@ -412,28 +397,31 @@ Your response:"""
         # Remove any trailing instruction text
         message = message.split("\n")[0].strip()
         
-        return {"message": message}
+        return PersonalityMessageResponse(message=message)
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Message generation failed: {str(e)}")
+        ctx.logger.error(f"Message generation failed: {str(e)}")
+        return PersonalityMessageResponse(message="Hello! I'd like to learn more about what you can do.")
 
 
-@app.post("/evaluate-conversation", response_model=EvaluationResult)
-async def evaluate_conversation(request: ConversationEvaluationRequest):
+@agent.on_rest_post("/rest/evaluate-conversation", ConversationEvaluationRequest, EvaluationResult)
+async def handle_evaluate_conversation(ctx: Context, req: ConversationEvaluationRequest) -> EvaluationResult:
     """Evaluate a conversation between a personality and an agent"""
+    ctx.logger.info(f"Received evaluation request for personality: {req.personality_name}")
+    
     try:
         # Format conversation for evaluation
         conversation_text = "\n".join([
-            f"{msg.role.upper()}: {msg.content}"
-            for msg in request.messages
+            f"{msg.get('role', '').upper()}: {msg.get('content', '')}"
+            for msg in req.messages
         ])
         
         prompt = f"""You are an expert at evaluating AI agent conversations. Evaluate the following conversation between a DeFi agent and a user.
 
 PERSONALITY TESTING:
-Name: {request.personality_name}
-Traits: {request.personality}
-Description: {request.description}
+Name: {req.personality_name}
+Traits: {req.personality}
+Description: {req.description}
 
 CONVERSATION:
 {conversation_text}
@@ -481,9 +469,9 @@ Return ONLY the JSON. No markdown, no explanations."""
         
         return EvaluationResult(
             conversationId=f"eval_{datetime.utcnow().timestamp()}",
-            personalityName=request.personality_name,
+            personalityName=req.personality_name,
             score=eval_data["score"],
-            criteria=EvaluationCriteria(**eval_data["criteria"]),
+            criteria=eval_data["criteria"],
             strengths=eval_data["strengths"],
             weaknesses=eval_data["weaknesses"],
             overallFeedback=eval_data["overallFeedback"],
@@ -491,213 +479,83 @@ Return ONLY the JSON. No markdown, no explanations."""
         )
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to evaluate conversation: {str(e)}")
+        ctx.logger.error(f"Failed to evaluate conversation: {str(e)}")
+        return EvaluationResult(
+            conversationId=f"eval_{datetime.utcnow().timestamp()}",
+            personalityName=req.personality_name,
+            score=50,
+            criteria={"helpfulness": 50, "accuracy": 50, "relevance": 50, "clarity": 50, "technicalDepth": 50},
+            strengths=["Error occurred during evaluation"],
+            weaknesses=["Unable to complete evaluation"],
+            overallFeedback="Evaluation failed due to an error",
+            timestamp=datetime.utcnow().isoformat()
+        )
 
 
-@app.post("/store-conversation")
-async def store_conversation(request: ConversationStorageRequest):
+@agent.on_rest_post("/rest/store-conversation", ConversationStorageRequest, ConversationStorageResponse)
+async def handle_store_conversation(ctx: Context, req: ConversationStorageRequest) -> ConversationStorageResponse:
     """Store a conversation for later analysis"""
+    ctx.logger.info(f"Storing conversation: {req.conversation_id}")
+    
     try:
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-        filename = f"conversation_{request.conversation_id}_{timestamp}.json"
+        filename = f"conversation_{req.conversation_id}_{timestamp}.json"
         filepath = STORAGE_DIR / filename
         
         data = {
-            "conversation_id": request.conversation_id,
-            "personality_name": request.personality_name,
-            "messages": [
-                {
-                    "role": msg.role,
-                    "content": msg.content,
-                    "timestamp": msg.timestamp
-                }
-                for msg in request.messages
-            ],
+            "conversation_id": req.conversation_id,
+            "personality_name": req.personality_name,
+            "messages": req.messages,
             "stored_at": datetime.utcnow().isoformat()
         }
         
         with open(filepath, 'w') as f:
             json.dump(data, f, indent=2)
         
-        return {
-            "success": True,
-            "filepath": str(filepath),
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        return ConversationStorageResponse(
+            success=True,
+            filepath=str(filepath),
+            timestamp=datetime.utcnow().isoformat()
+        )
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to store conversation: {str(e)}")
-
-
-
-# uAgents Integration
-if UAGENTS_AVAILABLE:
-    # Get Agentverse API key
-    AGENTVERSE_API_KEY = os.environ.get("AGENTVERSE_API_KEY")
-    
-    # Initialize uAgent
-    agent = Agent(
-        name="cdp_agent_tester_backend",
-        port=8000,
-        seed="cdp agent tester backend seed phrase",
-        mailbox=True if AGENTVERSE_API_KEY else False,
-        endpoint=["http://localhost:8000/submit"] if not os.getenv("RENDER") else None
-    )
-    
-    # uAgents Models (matching main.py structure)
-    class PersonalityRequest(Model):
-        agent_description: str
-    
-    class PersonalityResponse(Model):
-        success: bool
-        personalities: List[Dict[str, str]]
-        timestamp: str
-        agent_address: str
-    
-    # Chat Protocol
-    chat_proto = Protocol(spec=chat_protocol_spec)
-    
-    def create_text_chat(text: str, end_session: bool = False) -> ChatMessage:
-        """Create a text chat message."""
-        content = [TextContent(type="text", text=text)]
-        if end_session:
-            content.append(EndSessionContent(type="end-session"))
-        return ChatMessage(
-            timestamp=datetime.now(timezone.utc),
-            msg_id=uuid4(),
-            content=content,
+        ctx.logger.error(f"Failed to store conversation: {str(e)}")
+        return ConversationStorageResponse(
+            success=False,
+            filepath="",
+            timestamp=datetime.utcnow().isoformat()
         )
-    
-    @agent.on_event("startup")
-    async def startup_handler(ctx: Context):
-        ctx.logger.info(f"CDP Agent Tester Backend started with address: {ctx.agent.address}")
-        ctx.logger.info("🧠 Ready to generate AI-powered personalities for agent testing!")
-        ctx.logger.info("📊 Powered by ASI:One AI reasoning")
-        if AGENTVERSE_API_KEY:
-            ctx.logger.info("✅ Registered on Agentverse")
-        ctx.logger.info("🌐 REST API endpoints available")
-    
-    @chat_proto.on_message(ChatMessage)
-    async def handle_message(ctx: Context, sender: str, msg: ChatMessage):
-        """Handle incoming chat messages."""
-        ctx.storage.set(str(ctx.session), sender)
-        await ctx.send(
-            sender,
-            ChatAcknowledgement(timestamp=datetime.now(timezone.utc), acknowledged_msg_id=msg.msg_id),
-        )
-        
-        for item in msg.content:
-            if isinstance(item, StartSessionContent):
-                ctx.logger.info(f"Got a start session message from {sender}")
-                continue
-            elif isinstance(item, TextContent):
-                user_query = item.text.strip()
-                ctx.logger.info(f"Got request from {sender}: {user_query}")
-                
-                try:
-                    # Generate personalities
-                    example_description = "A DeFi agent that helps users with onchain operations"
-                    personalities_data = generate_fallback_personalities()
-                    
-                    # Format response
-                    response_text = f"**Generated Personalities:**\n\n"
-                    for i, personality in enumerate(personalities_data[:5], 1):
-                        response_text += f"**{i}. {personality['name']}:**\n"
-                        response_text += f"   *{personality['personality']}*\n\n"
-                    
-                    response_text += f"*Total: {len(personalities_data)} personalities*"
-                    await ctx.send(sender, create_text_chat(response_text))
-                    
-                except Exception as e:
-                    ctx.logger.error(f"Error: {e}")
-                    await ctx.send(sender, create_text_chat("Error processing request. Please try again."))
-    
-    @chat_proto.on_message(ChatAcknowledgement)
-    async def handle_ack(ctx: Context, sender: str, msg: ChatAcknowledgement):
-        """Handle chat acknowledgements."""
-        ctx.logger.info(f"Got acknowledgement from {sender}")
-    
-    # REST API Handler for uAgents
-    @agent.on_rest_post("/generate", PersonalityRequest, PersonalityResponse)
-    async def handle_personality_generation_uagents(ctx: Context, req: PersonalityRequest) -> PersonalityResponse:
-        """Handle personality generation via uAgents REST protocol."""
-        ctx.logger.info(f"Received personality generation request via uAgents")
-        
-        try:
-            prompt = f"""Generate 10 personalities for: {req.agent_description}"""
-            response = call_asi_one_api(prompt)
-            cleaned = response.strip()
-            if cleaned.startswith("```json"):
-                cleaned = cleaned[7:]
-            if cleaned.endswith("```"):
-                cleaned = cleaned[:-3]
-            
-            try:
-                personalities_data = json.loads(cleaned.strip())
-                if not isinstance(personalities_data, list) or len(personalities_data) != 10:
-                    personalities_data = generate_fallback_personalities()
-            except:
-                personalities_data = generate_fallback_personalities()
-            
-            return PersonalityResponse(
-                success=True,
-                personalities=personalities_data,
-                timestamp=datetime.now(timezone.utc).isoformat(),
-                agent_address=ctx.agent.address
-            )
-        except Exception as e:
-            ctx.logger.error(f"Error: {e}")
-            return PersonalityResponse(
-                success=False,
-                personalities=[],
-                timestamp=datetime.now(timezone.utc).isoformat(),
-                agent_address=ctx.agent.address
-            )
-    
-    # Include chat protocol
-    agent.include(chat_proto, publish_manifest=True)
-    
-    # Mount FastAPI app to agent
-    app.mount("/", agent._server)
+
+
+@agent.on_event("startup")
+async def startup_handler(ctx: Context):
+    ctx.logger.info(f"CDP Agent Tester Backend started with address: {ctx.agent.address}")
+    ctx.logger.info("🧠 Ready to generate AI-powered personalities for agent testing!")
+    ctx.logger.info("📊 Powered by ASI:One AI reasoning")
+    if AGENTVERSE_API_KEY:
+        ctx.logger.info(f"✅ Registered on Agentverse with mailbox: {AGENTVERSE_API_KEY[:8]}...")
+    ctx.logger.info("🌐 REST API endpoints available:")
+    ctx.logger.info("  - POST /rest/generate-personalities")
+    ctx.logger.info("  - POST /rest/generate-personality-message")
+    ctx.logger.info("  - POST /rest/evaluate-conversation")
+    ctx.logger.info("  - POST /rest/store-conversation")
 
 
 if __name__ == "__main__":
-    import uvicorn
-    
     print("🚀 Starting CDP Agent Tester Backend...")
     print("📊 Powered by ASI:One AI")
+    print("🤖 uAgents Framework: ENABLED")
     
-    # Check if running on Render (Render sets PORT env variable)
-    is_render = os.getenv("RENDER") or os.getenv("PORT")
-    
-    if UAGENTS_AVAILABLE and not is_render:
-        # Only use uAgents locally, not on Render
-        print("🤖 uAgents Framework: ENABLED")
-        if os.getenv("AGENTVERSE_API_KEY"):
-            print("✅ Agentverse Integration: ENABLED")
-            print(f"🆔 Agent Address: {agent.address}")
-        else:
-            print("⚠️ Agentverse Integration: DISABLED (No API key)")
-        print("🌐 Running in hybrid mode (FastAPI + uAgents)")
-        # Run the agent (includes FastAPI)
-        try:
-            agent.run()
-        except KeyboardInterrupt:
-            print("\n🛑 Shutting down...")
+    if AGENTVERSE_API_KEY:
+        print(f"✅ Agentverse Integration: ENABLED")
+        print(f"🆔 Agent will be registered on startup")
     else:
-        if is_render:
-            print("🌐 Running on Render - FastAPI only mode")
-        else:
-            print("⚠️ uAgents Framework: DISABLED")
-            print("💡 To enable uAgents: pip install uagents uagents-core")
-        
-        print("🌐 Running in standalone FastAPI mode")
-        
-        # Get port from environment (Render provides this)
-        port = int(os.getenv("PORT", 8000))
-        print(f"🌐 Server will be available on port: {port}")
-        print(f"📚 API docs at: http://localhost:{port}/docs")
-        
-        # Run standalone FastAPI
-        uvicorn.run(app, host="0.0.0.0", port=port)
+        print("⚠️ Agentverse Integration: DISABLED (No API key)")
+    
+    print("🌐 Starting uAgent with REST endpoints...")
+    
+    try:
+        agent.run()
+    except KeyboardInterrupt:
+        print("\n🛑 Shutting down...")
 

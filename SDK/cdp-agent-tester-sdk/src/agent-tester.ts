@@ -76,13 +76,7 @@ export class AgentTester {
     this.emit({ type: "test_started", testId, timestamp: startTime });
 
     try {
-      // Step 1: Check backend health
-      const isHealthy = await this.backendClient.healthCheck();
-      if (!isHealthy) {
-        throw new Error("Backend is not available. Please start the Python backend.");
-      }
-
-      // Step 2: Generate personalities
+      // Step 1: Generate personalities
       const personalities = await this.backendClient.generatePersonalities(
         this.config.agentDescription,
         this.config.agentCapabilities,
@@ -94,7 +88,7 @@ export class AgentTester {
         personalities,
       });
 
-      // Step 3: Run conversations with each personality
+      // Step 2: Run conversations with each personality
       const conversations: Conversation[] = [];
       for (const personality of personalities) {
         try {
@@ -110,7 +104,7 @@ export class AgentTester {
         }
       }
 
-      // Step 4: Evaluate all conversations
+      // Step 3: Evaluate all conversations
       const evaluations: EvaluationResult[] = [];
       for (const conversation of conversations) {
         if (conversation.status === "completed") {
@@ -138,7 +132,7 @@ export class AgentTester {
         }
       }
 
-      // Step 5: Compile results
+      // Step 4: Compile results
       const endTime = new Date();
       const results: TestResults = {
         testId,
