@@ -71,6 +71,7 @@ class MyAgent implements IUniversalAgent {
 import { AgentTester } from "@cdp-agentkit/agent-tester";
 
 const tester = new AgentTester({
+  accessToken: process.env.ACCESS_TOKEN!, // REQUIRED: Get from db-server
   agentDescription: "A DeFi agent that helps users with lending and borrowing",
   // backendUrl is optional - uses hosted backend by default
   // backendUrl: "https://backend-739298578243.us-central1.run.app"

@@ -39,6 +39,7 @@ function validateEnvironment(): void {
     "CDP_API_KEY_ID",
     "CDP_API_KEY_SECRET",
     "CDP_WALLET_SECRET",
+    "ACCESS_TOKEN", // Required for CDP Agent Tester
   ];
   requiredVars.forEach(varName => {
     if (!process.env[varName]) {
@@ -305,12 +306,14 @@ async function runTestMode(agent: any, config: any) {
       - Deploy smart contracts
       - Read blockchain data and transaction history
     `,
+    accessToken: process.env.ACCESS_TOKEN!, // REQUIRED: User access token for test result storage
     numPersonalities: 1, // Generate number of targeted test personalities
     maxMessagesPerConversation: 2,
     // Note: 10-second delay between exchanges is automatically applied to avoid rate limits
     saveConversations: true,
     conversationOutputPath: "./test-results",
     realTimeLogging: true,
+    dbServerUrl: process.env.DB_SERVER_URL, // Optional: defaults to http://localhost:3001
   });
 
   // Add event listeners for real-time updates

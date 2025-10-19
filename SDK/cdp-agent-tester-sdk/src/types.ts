@@ -59,12 +59,14 @@ export interface EvaluationResult {
 export interface TestConfig {
   agentDescription: string;
   agentCapabilities: string; // Natural language description of what the agent can do
+  accessToken: string; // REQUIRED: User access token for db-server storage
   numPersonalities?: number; // Number of personalities to generate (default: 5)
   maxMessagesPerConversation?: number;
   backendUrl?: string;
   saveConversations?: boolean;
   conversationOutputPath?: string;
   realTimeLogging?: boolean;
+  dbServerUrl?: string; // URL of the db-server (default: http://localhost:3001)
 }
 
 /**

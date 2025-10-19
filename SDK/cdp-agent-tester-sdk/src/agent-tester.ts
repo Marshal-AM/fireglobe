@@ -16,6 +16,7 @@ import {
 } from "./types";
 import { ConversationLogger } from "./conversation-logger";
 import { v4 as uuidv4 } from "uuid";
+import axios from "axios";
 
 export class AgentTester {
   private backendClient: BackendClient;
@@ -24,6 +25,14 @@ export class AgentTester {
   private logger?: ConversationLogger;
 
   constructor(config: TestConfig) {
+    // Validate required access token
+    if (!config.accessToken || config.accessToken.trim() === '') {
+      throw new Error(
+        '❌ ACCESS TOKEN REQUIRED: CDP Agent Tester requires an access token to function.\n' 
+
+      );
+    }
+
     this.config = {
       maxMessagesPerConversation: config.maxMessagesPerConversation || 10,
       numPersonalities: config.numPersonalities || 5,
@@ -35,6 +44,10 @@ export class AgentTester {
       realTimeLogging: config.realTimeLogging ?? true,
       agentDescription: config.agentDescription,
       agentCapabilities: config.agentCapabilities,
+      accessToken: config.accessToken,
+      dbServerUrl: config.dbServerUrl || 
+                   process.env.DB_SERVER_URL || 
+                   "http://localhost:3001",
     };
 
     this.backendClient = new BackendClient({
@@ -150,6 +163,9 @@ export class AgentTester {
       if (this.logger) {
         await this.logger.saveTestResults(results);
       }
+
+      // Upload to db-server (required - access token validated in constructor)
+      await this.uploadToDbServer();
 
       this.emit({ type: "test_completed", results });
 
@@ -531,6 +547,48 @@ export class AgentTester {
       acc[item] = (acc[item] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
+  }
+
+  /**
+   * Upload test results to db-server (Lighthouse + Supabase)
+   */
+  private async uploadToDbServer(): Promise<void> {
+    try {
+      console.log('\n📦 Uploading test results to db-server...');
+      console.log(`   DB Server: ${this.config.dbServerUrl}`);
+      console.log(`   Access Token: ${this.config.accessToken?.substring(0, 8)}...`);
+      
+      const response = await axios.post(
+        `${this.config.dbServerUrl}/upload-complete`,
+        {
+          access_token: this.config.accessToken,
+        },
+        {
+          timeout: 120000, // 2 minute timeout for complete upload
+        }
+      );
+
+      if (response.data.success) {
+        console.log('\n✅ Test results uploaded successfully!');
+        console.log(`   Run ID: ${response.data.run_id}`);
+        console.log(`   KG IPFS: ${response.data.kg.url}`);
+        console.log(`   Metrics IPFS: ${response.data.metrics.url}`);
+        console.log(`   User ID: ${response.data.user_id}`);
+      } else {
+        console.warn('⚠️  Upload completed but with warnings');
+      }
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error(`\n❌ Failed to upload to db-server: ${error.message}`);
+        if (error.response?.data) {
+          console.error(`   Error details: ${JSON.stringify(error.response.data)}`);
+        }
+        console.error(`   Note: Test results are still saved locally`);
+      } else {
+        console.error(`\n❌ Upload error: ${error}`);
+      }
+      // Don't throw - we don't want to fail the test run if upload fails
+    }
   }
 }
 
