@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import { Globe } from '@/components/ui/globe';
 import { ShineBorder } from '@/components/ui/shine-border';
 import { SparklesText } from '@/components/ui/sparkles-text';
+import { AuroraText } from '@/components/ui/aurora-text';
+import { RainbowButton } from '@/components/ui/rainbow-button';
 import LiquidEther from '@/components/LiquidEther';
 
 
@@ -113,10 +115,11 @@ export default function Home() {
     return (
       <div className="min-h-screen flex bg-black p-4 gap-4">
         {/* Left Side - Content Canvas */}
-        <div className="flex-1 border-2 border-black rounded-lg p-4 relative overflow-hidden">
+        <div className="flex-1 border-2 border-gray-600 rounded-lg p-4 relative overflow-hidden bg-gray-950">
+          {/* LiquidEther with reduced transparency */}
           <div className="absolute inset-0">
             <LiquidEther
-              colors={[ '#5227FF', '#FF9FFC', '#B19EEF' ]}
+              colors={['#FF4500', '#FF8C00', '#FFD700']}
               mouseForce={20}
               cursorSize={100}
               isViscous={false}
@@ -134,30 +137,35 @@ export default function Home() {
               style={{ width: '100%', height: '100%', position: 'relative' }}
             />
           </div>
+          
           <div className="flex flex-col items-center justify-center text-center p-8 h-full relative z-10">
             {/* FireGlobe Title */}
             <div className="mb-8">
-              <SparklesText
-                className="text-6xl font-bold"
-                sparklesCount={3}
-                colors={{ first: "#ff6b35", second: "#ffffff" }}
-              >
-                <span className="text-orange-500">Fire</span><span className="text-white">Globe</span>
-              </SparklesText>
+              <div className="text-7xl font-bold flex items-center justify-center">
+                <span className="text-white">Fire</span>
+                <span className="mx-2"></span>
+                <AuroraText 
+                  className="text-7xl font-bold"
+                  colors={["#FF4500", "#FF8C00", "#FFD700", "#FF6B35"]}
+                  speed={1.5}
+                >
+                  <span className="text-white">Globe</span>
+                </AuroraText>
+              </div>
             </div>
 
             {/* Login Section */}
             <div className="max-w-md w-full">
-              <p className="text-gray-400 mb-6">
+              <p className="text-gray-400 mb-6 font-bold">
                 Get your access token to start testing
               </p>
 
-              <button
+              <RainbowButton
                 onClick={login}
-                className="w-full bg-white hover:bg-gray-100 text-black font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl"
+                className="mx-auto font-semibold py-2.5 px-6 rounded-lg text-base"
               >
                 Login with Privy
-              </button>
+              </RainbowButton>
 
               <p className="mt-6 text-sm text-gray-500">
                 Connect with email, wallet, or social accounts
@@ -167,10 +175,10 @@ export default function Home() {
         </div>
 
         {/* Right Side - Globe Canvas */}
-        <div className="flex-1 border-2 border-black rounded-lg p-4 relative overflow-hidden">
+        <div className="flex-1 border-2 border-gray-600 rounded-lg p-4 relative overflow-hidden">
           <div className="absolute inset-0">
             <LiquidEther
-              colors={[ '#5227FF', '#FF9FFC', '#B19EEF' ]}
+              colors={['#FF4500', '#FF8C00', '#FFD700']}
               mouseForce={20}
               cursorSize={100}
               isViscous={false}
