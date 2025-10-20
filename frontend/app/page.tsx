@@ -4,6 +4,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import { useEffect, useState } from 'react';
 import { Globe } from '@/components/ui/globe';
 import { ShineBorder } from '@/components/ui/shine-border';
+import { SparklesText } from '@/components/ui/sparkles-text';
 
 
 export default function Home() {
@@ -111,12 +112,23 @@ export default function Home() {
     return (
       <div className="min-h-screen flex bg-black p-4 gap-4">
         {/* Left Side - Content Canvas */}
-        <div className="flex-1 border-2 border-purple-500 rounded-lg p-4">
-          <div className="flex flex-col items-center justify-center text-center p-8 h-full">
+        <div className="flex-1 border-2 border-black rounded-lg p-4 backdrop-blur-xl bg-white/10 shadow-2xl relative overflow-hidden group hover:bg-white/15 transition-all duration-500">
+          {/* Liquid glass overlay with animated gradients */}
+          <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-white/5 to-transparent rounded-lg animate-pulse"></div>
+          <div className="absolute inset-0 bg-gradient-to-tl from-white/10 via-transparent to-white/5 rounded-lg group-hover:from-white/15 transition-all duration-700"></div>
+          {/* Subtle shimmer effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent rounded-lg transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
+          <div className="flex flex-col items-center justify-center text-center p-8 h-full relative z-10">
             {/* FireGlobe Title */}
-            <h1 className="text-6xl font-bold text-white mb-8 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-              FireGlobe
-            </h1>
+            <div className="mb-8">
+              <SparklesText
+                className="text-6xl font-bold"
+                sparklesCount={3}
+                colors={{ first: "#ff6b35", second: "#ffffff" }}
+              >
+                <span className="text-orange-500">Fire</span><span className="text-white">Globe</span>
+              </SparklesText>
+            </div>
 
             {/* Login Section */}
             <div className="max-w-md w-full">
@@ -139,8 +151,13 @@ export default function Home() {
         </div>
 
         {/* Right Side - Globe Canvas */}
-        <div className="flex-1 border-2 border-purple-500 rounded-lg p-4">
-          <div className="flex items-center justify-center h-full">
+        <div className="flex-1 border-2 border-black rounded-lg p-4 backdrop-blur-xl bg-white/10 shadow-2xl relative overflow-hidden group hover:bg-white/15 transition-all duration-500">
+          {/* Liquid glass overlay with animated gradients */}
+          <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-white/5 to-transparent rounded-lg animate-pulse"></div>
+          <div className="absolute inset-0 bg-gradient-to-tl from-white/10 via-transparent to-white/5 rounded-lg group-hover:from-white/15 transition-all duration-700"></div>
+          {/* Subtle shimmer effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent rounded-lg transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
+          <div className="flex items-center justify-center h-full relative z-10">
             <div className="w-[500px] h-[500px] relative">
               <Globe className="!absolute !inset-0 !w-full !h-full" />
             </div>
