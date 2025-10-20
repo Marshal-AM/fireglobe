@@ -118,27 +118,6 @@ export default function Home() {
         {/* Left Side - Content Canvas */}
         <div className="flex-1 border-2 border-black rounded-lg p-4 relative overflow-hidden bg-gray-950">
           {/* LiquidEther with reduced transparency */}
-          <div className="absolute inset-0 opacity-20">
-            <LiquidEther
-              colors={['#FF4500', '#FF8C00', '#FFD700']}
-              mouseForce={20}
-              cursorSize={100}
-              isViscous={false}
-              viscous={30}
-              iterationsViscous={32}
-              iterationsPoisson={32}
-              resolution={0.5}
-              isBounce={false}
-              autoDemo={true}
-              autoSpeed={0.5}
-              autoIntensity={2.2}
-              takeoverDuration={0.25}
-              autoResumeDelay={3000}
-              autoRampDuration={0.6}
-              style={{ width: '100%', height: '100%', position: 'relative' }}
-            />
-          </div>
-          
           <div className="flex flex-col items-center justify-center text-center p-8 h-full relative z-10">
             {/* FireGlobe Title */}
             <div className="mb-8">
@@ -166,7 +145,7 @@ export default function Home() {
                 onClick={login}
                 className="mx-auto font-semibold py-2.5 px-6 rounded-lg text-base"
               >
-                Login with Privy
+                Get Started
               </RainbowButton>
 
               <p className="mt-6 text-sm text-gray-500">
