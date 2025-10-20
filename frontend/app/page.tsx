@@ -3,11 +3,12 @@
 import { usePrivy } from '@privy-io/react-auth';
 import { useEffect, useState } from 'react';
 import { Globe } from '@/components/ui/globe';
-import { ShineBorder } from '@/components/ui/shine-border';
-import { SparklesText } from '@/components/ui/sparkles-text';
 import { AuroraText } from '@/components/ui/aurora-text';
 import { RainbowButton } from '@/components/ui/rainbow-button';
 import LiquidEther from '@/components/LiquidEther';
+import { Sora } from 'next/font/google';
+
+const sora = Sora({ subsets: ['latin'], weight: ['700','800'] });
 
 
 export default function Home() {
@@ -117,7 +118,7 @@ export default function Home() {
         {/* Left Side - Content Canvas */}
         <div className="flex-1 border-2 border-gray-600 rounded-lg p-4 relative overflow-hidden bg-gray-950">
           {/* LiquidEther with reduced transparency */}
-          <div className="absolute inset-0">
+          <div className="absolute inset-0 opacity-20">
             <LiquidEther
               colors={['#FF4500', '#FF8C00', '#FFD700']}
               mouseForce={20}
@@ -141,11 +142,11 @@ export default function Home() {
           <div className="flex flex-col items-center justify-center text-center p-8 h-full relative z-10">
             {/* FireGlobe Title */}
             <div className="mb-8">
-              <div className="text-7xl font-bold flex items-center justify-center">
+              <div className={`${sora.className} text-7xl md:text-8xl font-extrabold tracking-tight flex items-center justify-center transform -skew-x-12`}>
                 <span className="text-white">Fire</span>
                 <span className="mx-2"></span>
                 <AuroraText 
-                  className="text-7xl font-bold"
+                  className="text-7xl md:text-8xl font-extrabold tracking-tight"
                   colors={["#FF4500", "#FF8C00", "#FFD700", "#FF6B35"]}
                   speed={1.5}
                 >
