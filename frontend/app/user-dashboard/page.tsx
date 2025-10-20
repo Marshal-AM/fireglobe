@@ -3,6 +3,11 @@
 import { usePrivy } from '@privy-io/react-auth';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Copy, Check, LogOut, TrendingUp, Activity, ExternalLink } from 'lucide-react';
+import { AuroraText } from '@/components/ui/aurora-text';
+import { Sora } from 'next/font/google';
+
+const sora = Sora({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 export default function UserDashboard() {
   const router = useRouter();
@@ -34,7 +39,6 @@ export default function UserDashboard() {
     } else {
       setAccessToken(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated, user]);
 
   const fetchOrCreateAccessToken = async () => {
@@ -141,53 +145,112 @@ export default function UserDashboard() {
     }
   }, [authenticated, userId]);
 
+  const formatAddress = (addr: string) => {
+    return addr; // Show full address
+  };
+
+  const successRate = testRuns.length > 0 
+    ? Math.round((testRuns.filter(tr => tr.fgc_reward_tx).length / testRuns.length) * 100) 
+    : 0;
+
   if (!ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="min-h-screen bg-black py-8 px-4">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
-          <p className="mt-4 text-white">Loading...</p>
+          <div className="min-h-screen bg-black py-8 px-4"></div>
+          <p className="mt-6 text-purple-300 font-medium">Loading Dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black py-12 px-4">
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-gray-900 rounded-2xl shadow-xl p-8 mb-6 border border-gray-800">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-white">Welcome!</h1>
-              <p className="text-gray-400 mt-1">
-                {user?.email?.address || user?.wallet?.address || 'User'}
-              </p>
+    <div className="min-h-screen bg-black py-8 px-4">
+
+      <div className="max-w-7xl mx-auto relative z-10">
+        {/* Header Section */}
+        <div className="backdrop-blur-xl bg-white/5 rounded-3xl shadow-2xl p-8 mb-8 border border-white/10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-6">
+              <div>
+                <div className={`${sora.className} text-3xl font-bold tracking-tight flex items-center transform -skew-x-12`}>
+                  <span className="text-white">Welcome</span>
+                  <span className="mx-2"></span>
+                  <AuroraText 
+                    className="text-3xl font-bold tracking-tight"
+                    colors={["#FF4500", "#FF8C00", "#FFD700", "#FF6B35"]}
+                    speed={1.5}
+                  >
+                    <span className="text-white">Back!</span>
+                  </AuroraText>
+                </div>
+                <div className="flex items-center gap-3 mt-2">
+                  {user?.wallet?.address && (
+                    <span className="px-3 py-1 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 text-sm font-mono">
+                      {formatAddress(user.wallet.address)}
+                    </span>
+                  )}
+                  {user?.email?.address && (
+                    <span className="text-gray-400 text-sm">{user.email.address}</span>
+                  )}
+                </div>
+              </div>
             </div>
             <button
               onClick={() => { setAccessToken(null); logout(); router.replace('/'); }}
-              className="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+              className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-medium py-3 px-6 rounded-xl transition-all duration-200 hover:scale-105"
             >
+              <LogOut className="w-4 h-4" />
               Logout
             </button>
           </div>
         </div>
 
-        <div className="bg-gray-900 rounded-2xl shadow-xl p-8 border border-gray-800">
-          <h2 className="text-xl font-bold text-white mb-4">Your Access Token</h2>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {/* FGC Balance Card */}
+          <div className="backdrop-blur-xl bg-gradient-to-br from-purple-500/10 to-purple-500/5 rounded-2xl shadow-xl p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all duration-300 hover:scale-105">
+            <p className="text-gray-400 text-sm mb-1">FGC Balance</p>
+            <p className="text-3xl font-bold text-white font-mono">
+              {fgcBalance === null ? '—' : fgcBalance}
+            </p>
+            <p className="text-purple-400 text-xs mt-1">FGC</p>
+          </div>
+
+          {/* Total Test Runs Card */}
+          <div className="backdrop-blur-xl bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 rounded-2xl shadow-xl p-6 border border-cyan-500/20 hover:border-cyan-500/40 transition-all duration-300 hover:scale-105">
+            <p className="text-gray-400 text-sm mb-1">Total Test Runs</p>
+            <p className="text-3xl font-bold text-white">{testRuns.length}</p>
+            <p className="text-cyan-400 text-xs mt-1">All time</p>
+          </div>
+
+          {/* Success Rate Card */}
+          <div className="backdrop-blur-xl bg-gradient-to-br from-green-500/10 to-green-500/5 rounded-2xl shadow-xl p-6 border border-green-500/20 hover:border-green-500/40 transition-all duration-300 hover:scale-105">
+            <p className="text-gray-400 text-sm mb-1">Success Rate</p>
+            <p className="text-3xl font-bold text-white">{successRate}%</p>
+            <p className="text-green-400 text-xs mt-1">Rewarded runs</p>
+          </div>
+        </div>
+
+        {/* Access Token Section */}
+        <div className="backdrop-blur-xl bg-white/5 rounded-3xl shadow-2xl p-8 mb-8 border border-white/10">
+          <h2 className="text-2xl font-bold text-white mb-6">
+            Access Token
+          </h2>
 
           {loading && (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-              <p className="ml-3 text-gray-400">Generating your access token...</p>
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-10 w-10 border-4 border-purple-500 border-t-transparent"></div>
+              <p className="ml-4 text-gray-300">Generating your access token...</p>
             </div>
           )}
 
           {error && (
-            <div className="bg-red-900 border border-red-700 rounded-lg p-4 mb-4">
-              <p className="text-red-200">{error}</p>
+            <div className="backdrop-blur-xl bg-red-500/10 border border-red-500/30 rounded-2xl p-6 mb-6">
+              <p className="text-red-300 mb-3">{error}</p>
               <button
                 onClick={fetchOrCreateAccessToken}
-                className="mt-2 text-red-400 hover:text-red-300 font-medium underline"
+                className="text-red-400 hover:text-red-300 font-medium underline"
               >
                 Try again
               </button>
@@ -195,93 +258,115 @@ export default function UserDashboard() {
           )}
 
           {accessToken && !loading && (
-            <>
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
-                <code className="text-sm text-gray-200 break-all font-mono">
+            <div className="space-y-4">
+              <div className="backdrop-blur-xl bg-slate-900/50 border border-slate-700/50 rounded-2xl p-6 group hover:border-purple-500/50 transition-all duration-300">
+                <code className="text-sm text-gray-300 break-all font-mono block">
                   {accessToken}
                 </code>
               </div>
 
               <button
                 onClick={copyToClipboard}
-                className="w-full bg-white hover:bg-gray-100 text-black font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl mb-4"
+                className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 text-white font-semibold py-4 px-6 rounded-2xl transition-all duration-200 shadow-lg hover:shadow-purple-500/50 hover:scale-105"
               >
-                {copied ? '✓ Copied!' : 'Copy Access Token'}
-              </button>
-
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-                <p className="text-gray-300 text-sm">FGC Balance</p>
-                <p className="text-white text-lg font-mono">
-                  {fgcBalance === null ? '—' : `${fgcBalance} FGC`}
-                </p>
-              </div>
-
-              <div className="mt-6">
-                <h3 className="text-lg font-bold text-white mb-3">Your Test Runs</h3>
-                {testRuns.length === 0 ? (
-                  <p className="text-gray-400 text-sm">No test runs found.</p>
+                {copied ? (
+                  <>
+                    <Check className="w-5 h-5" />
+                    Copied to Clipboard!
+                  </>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {testRuns.map((tr) => (
-                      <div
-                        key={tr.run_id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => router.push(`/temp-test-details?kg=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.kg_hash}`)}&metrics=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.metrics_hash}`)}`)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            router.push(`/temp-test-details?kg=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.kg_hash}`)}&metrics=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.metrics_hash}`)}`);
-                          }
-                        }}
-                        className="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-gray-600 cursor-pointer"
-                      >
-                        <div className="text-xs text-gray-400 mb-2">{new Date(tr.created_at).toLocaleString()}</div>
-                        <div className="mb-2">
-                          <div className="text-sm text-gray-300">KG</div>
-                          <a
-                            href={`https://gateway.lighthouse.storage/ipfs/${tr.kg_hash}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs text-blue-400 hover:text-blue-300 break-all"
-                          >
-                            {tr.kg_hash}
-                          </a>
-                        </div>
-                        <div className="mb-2">
-                          <div className="text-sm text-gray-300">Metrics</div>
-                          <a
-                            href={`https://gateway.lighthouse.storage/ipfs/${tr.metrics_hash}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs text-blue-400 hover:text-blue-300 break-all"
-                          >
-                            {tr.metrics_hash}
-                          </a>
-                        </div>
-                        {tr.fgc_reward_tx ? (
-                          <div className="mt-2">
-                            <div className="text-sm text-gray-300">Reward Tx</div>
-                            <a
-                              href={`https://sepolia.etherscan.io/tx/${tr.fgc_reward_tx}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-xs text-green-400 hover:text-green-300 break-all"
-                            >
-                              {tr.fgc_reward_tx}
-                            </a>
-                          </div>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
+                  <>
+                    <Copy className="w-5 h-5" />
+                    Copy Access Token
+                  </>
                 )}
-              </div>
-            </>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Test Runs Section */}
+        <div className="backdrop-blur-xl bg-white/5 rounded-3xl shadow-2xl p-8 border border-white/10">
+          <h2 className="text-2xl font-bold text-white mb-6">
+            Test Runs History
+          </h2>
+
+          {testRuns.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-gray-400 text-lg">No test runs yet</p>
+              <p className="text-gray-500 text-sm mt-2">Your test runs will appear here</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {testRuns.map((tr, idx) => (
+                <div
+                  key={tr.run_id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => router.push(`/temp-test-details?kg=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.kg_hash}`)}&metrics=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.metrics_hash}`)}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      router.push(`/temp-test-details?kg=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.kg_hash}`)}&metrics=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.metrics_hash}`)}`);
+                    }
+                  }}
+                  className="backdrop-blur-xl bg-slate-900/30 border border-slate-700/50 rounded-2xl p-6 hover:border-purple-500/50 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-purple-500/20 group"
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center border border-purple-500/30">
+                        <span className="text-purple-400 font-bold">#{testRuns.length - idx}</span>
+                      </div>
+                      <div>
+                        <p className="text-white font-medium">Test Run</p>
+                        <p className="text-xs text-gray-400">{new Date(tr.created_at).toLocaleString()}</p>
+                      </div>
+                    </div>
+                    {tr.fgc_reward_tx ? (
+                      <span className="px-3 py-1 rounded-full bg-green-500/20 border border-green-500/30 text-green-400 text-xs font-medium">
+                        Rewarded
+                      </span>
+                    ) : (
+                      <span className="px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-medium">
+                        Pending
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Data Links */}
+                  <div className="space-y-3">
+                    <div className="bg-slate-800/50 rounded-xl p-3 border border-slate-700/30">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs text-gray-400 font-medium">Knowledge Graph</p>
+                        <ExternalLink className="w-3 h-3 text-gray-500 group-hover:text-purple-400 transition-colors" />
+                      </div>
+                      <p className="text-xs text-purple-400 font-mono break-all">{tr.kg_hash.slice(0, 20)}...</p>
+                    </div>
+
+                    <div className="bg-slate-800/50 rounded-xl p-3 border border-slate-700/30">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs text-gray-400 font-medium">Metrics</p>
+                        <ExternalLink className="w-3 h-3 text-gray-500 group-hover:text-cyan-400 transition-colors" />
+                      </div>
+                      <p className="text-xs text-cyan-400 font-mono break-all">{tr.metrics_hash.slice(0, 20)}...</p>
+                    </div>
+
+                    {tr.fgc_reward_tx && (
+                      <div className="bg-green-500/10 rounded-xl p-3 border border-green-500/30">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-xs text-gray-400 font-medium">Reward Transaction</p>
+                          <ExternalLink className="w-3 h-3 text-green-400" />
+                        </div>
+                        <p className="text-xs text-green-400 font-mono break-all">{tr.fgc_reward_tx.slice(0, 20)}...</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>
     </div>
   );
 }
-
-
