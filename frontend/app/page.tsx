@@ -116,7 +116,7 @@ export default function Home() {
     return (
       <div className="min-h-screen flex bg-black p-4 gap-4">
         {/* Left Side - Content Canvas */}
-        <div className="flex-1 border-2 border-gray-600 rounded-lg p-4 relative overflow-hidden bg-gray-950">
+        <div className="flex-1 border-2 border-black rounded-lg p-4 relative overflow-hidden bg-gray-950">
           {/* LiquidEther with reduced transparency */}
           <div className="absolute inset-0 opacity-20">
             <LiquidEther
@@ -154,6 +154,7 @@ export default function Home() {
                 </AuroraText>
               </div>
             </div>
+            
 
             {/* Login Section */}
             <div className="max-w-md w-full">
@@ -176,7 +177,7 @@ export default function Home() {
         </div>
 
         {/* Right Side - Globe Canvas */}
-        <div className="flex-1 border-2 border-gray-600 rounded-lg p-4 relative overflow-hidden">
+        <div className="flex-1 border-2 border-black rounded-lg p-4 relative overflow-hidden">
           <div className="absolute inset-0">
             <LiquidEther
               colors={['#FF4500', '#FF8C00', '#FFD700']}
