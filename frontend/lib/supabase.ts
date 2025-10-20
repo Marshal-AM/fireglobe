@@ -24,6 +24,7 @@ export interface TestRun {
   user_id: string;
   kg_hash: string;
   metrics_hash: string;
+  fgc_reward_tx?: string | null;
   created_at: string;
 }
 

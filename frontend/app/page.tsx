@@ -1,7 +1,8 @@
 'use client';
 
 import { usePrivy } from '@privy-io/react-auth';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Globe } from '@/components/ui/globe';
 import { AuroraText } from '@/components/ui/aurora-text';
 import { RainbowButton } from '@/components/ui/rainbow-button';
@@ -12,92 +13,14 @@ const sora = Sora({ subsets: ['latin'], weight: ['700','800'] });
 
 
 export default function Home() {
-  const { ready, authenticated, user, login, logout } = usePrivy();
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const router = useRouter();
+  const { ready, authenticated, login } = usePrivy();
 
   useEffect(() => {
-    if (authenticated && user) {
-      fetchOrCreateAccessToken();
-    } else {
-      setAccessToken(null);
+    if (ready && authenticated) {
+      router.replace('/user-dashboard');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authenticated, user]);
-
-  const fetchOrCreateAccessToken = async () => {
-    if (!user) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Get user's email and wallet address
-      const email = user.email?.address || null;
-      const walletAddress = user.wallet?.address || null;
-
-      // Check if user already exists in our system (stored in localStorage)
-      const storedToken = localStorage.getItem(`access_token_${user.id}`);
-      
-      if (storedToken) {
-        // Verify token is still valid
-        const verifyResponse = await fetch(`/api/auth?access_token=${storedToken}`);
-        if (verifyResponse.ok) {
-          setAccessToken(storedToken);
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Create or get user via API route
-      const response = await fetch('/api/auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          email,
-          walletAddress,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to authenticate');
-      }
-
-      const data = await response.json();
-      
-      if (data.success && data.access_token) {
-        setAccessToken(data.access_token);
-        // Store token locally
-        localStorage.setItem(`access_token_${user.id}`, data.access_token);
-      } else {
-        throw new Error('Invalid response from server');
-      }
-    } catch (err) {
-      console.error('Error fetching access token:', err);
-      setError(err instanceof Error ? err.message : 'Failed to get access token');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const copyToClipboard = async () => {
-    if (accessToken) {
-      await navigator.clipboard.writeText(accessToken);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  const handleLogout = () => {
-    setAccessToken(null);
-    logout();
-  };
+  }, [ready, authenticated, router]);
 
   // Loading state
   if (!ready) {
@@ -186,69 +109,6 @@ export default function Home() {
     );
   }
 
-  // Dashboard page (logged in)
-  return (
-    <div className="min-h-screen bg-black py-12 px-4">
-      <div className="max-w-3xl mx-auto">
-        {/* Header */}
-        <div className="bg-gray-900 rounded-2xl shadow-xl p-8 mb-6 border border-gray-800">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-white">Welcome!</h1>
-              <p className="text-gray-400 mt-1">
-                {user?.email?.address || user?.wallet?.address || 'User'}
-              </p>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-
-        {/* Access Token Card */}
-        <div className="bg-gray-900 rounded-2xl shadow-xl p-8 border border-gray-800">
-          <h2 className="text-xl font-bold text-white mb-4">Your Access Token</h2>
-          
-          {loading && (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-              <p className="ml-3 text-gray-400">Generating your access token...</p>
-            </div>
-          )}
-
-          {error && (
-            <div className="bg-red-900 border border-red-700 rounded-lg p-4 mb-4">
-              <p className="text-red-200">{error}</p>
-              <button
-                onClick={fetchOrCreateAccessToken}
-                className="mt-2 text-red-400 hover:text-red-300 font-medium underline"
-              >
-                Try again
-              </button>
-            </div>
-          )}
-
-          {accessToken && !loading && (
-            <>
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
-                <code className="text-sm text-gray-200 break-all font-mono">
-                  {accessToken}
-                </code>
-              </div>
-
-              <button
-                onClick={copyToClipboard}
-                className="w-full bg-white hover:bg-gray-100 text-black font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl mb-4"
-              >
-                {copied ? '✓ Copied!' : 'Copy Access Token'}
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  // If authenticated, the redirect above will navigate to /user-dashboard
+  return null;
 }
