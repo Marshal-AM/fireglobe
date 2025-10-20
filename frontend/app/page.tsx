@@ -2,6 +2,14 @@
 
 import { usePrivy } from '@privy-io/react-auth';
 import { useEffect, useState } from 'react';
+import { Globe } from '@/components/ui/globe';
+import { AuroraText } from '@/components/ui/aurora-text';
+import { RainbowButton } from '@/components/ui/rainbow-button';
+import LiquidEther from '@/components/LiquidEther';
+import { Sora } from 'next/font/google';
+
+const sora = Sora({ subsets: ['latin'], weight: ['700','800'] });
+
 
 export default function Home() {
   const { ready, authenticated, user, login, logout } = usePrivy();
@@ -94,10 +102,10 @@ export default function Home() {
   // Loading state
   if (!ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
+          <p className="mt-4 text-white">Loading...</p>
         </div>
       </div>
     );
@@ -106,27 +114,73 @@ export default function Home() {
   // Login page
   if (!authenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full mx-4">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              CDP Agent Tester
-            </h1>
-            <p className="text-gray-600">
-              Get your access token to start testing
-            </p>
+      <div className="min-h-screen flex bg-black p-4 gap-4 relative">
+        {/* Full page LiquidEther background */}
+        <div className="absolute inset-0">
+          <LiquidEther
+            colors={['#FF4500', '#FF8C00', '#FFD700']}
+            mouseForce={20}
+            cursorSize={100}
+            isViscous={false}
+            viscous={30}
+            iterationsViscous={32}
+            iterationsPoisson={32}
+            resolution={0.5}
+            isBounce={false}
+            autoDemo={true}
+            autoSpeed={0.5}
+            autoIntensity={2.2}
+            takeoverDuration={0.25}
+            autoResumeDelay={3000}
+            autoRampDuration={0.6}
+            style={{ width: '100%', height: '100%', position: 'relative' }}
+          />
+        </div>
+        {/* Left Side - Content Canvas */}
+        <div className="flex-1 relative overflow-hidden">
+          <div className="flex flex-col items-center justify-center text-center p-8 h-full relative z-10">
+            {/* FireGlobe Title */}
+            <div className="mb-8">
+              <div className={`${sora.className} text-7xl md:text-8xl font-extrabold tracking-tight flex items-center justify-center transform -skew-x-12`}>
+                <span className="text-white">Fire</span>
+                <span className="mx-2"></span>
+                <AuroraText 
+                  className="text-7xl md:text-8xl font-extrabold tracking-tight"
+                  colors={["#FF4500", "#FF8C00", "#FFD700", "#FF6B35"]}
+                  speed={1.5}
+                >
+                  <span className="text-white">Globe</span>
+                </AuroraText>
+              </div>
+            </div>
+
+            {/* Login Section */}
+            <div className="max-w-md w-full">
+              <p className="text-gray-400 mb-6 font-bold">
+                Get your access token to start testing
+              </p>
+
+              <RainbowButton
+                onClick={login}
+                className="mx-auto font-semibold py-2.5 px-6 rounded-lg text-base"
+              >
+                Get Started
+              </RainbowButton>
+
+              <p className="mt-6 text-sm text-gray-500">
+                Connect with email, wallet, or social accounts
+              </p>
+            </div>
           </div>
+        </div>
 
-          <button
-            onClick={login}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl"
-          >
-            Login with Privy
-          </button>
-
-          <p className="mt-6 text-sm text-gray-500 text-center">
-            Connect with email, wallet, or social accounts
-          </p>
+        {/* Right Side - Globe Canvas */}
+        <div className="flex-1 relative overflow-hidden">
+          <div className="flex items-center justify-center h-full relative z-10">
+            <div className="w-[500px] h-[500px] relative">
+              <Globe className="!absolute !inset-0 !w-full !h-full" />
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -134,14 +188,14 @@ export default function Home() {
 
   // Dashboard page (logged in)
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
+    <div className="min-h-screen bg-black py-12 px-4">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
+        <div className="bg-gray-900 rounded-2xl shadow-xl p-8 mb-6 border border-gray-800">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Welcome!</h1>
-              <p className="text-gray-600 mt-1">
+              <h1 className="text-2xl font-bold text-white">Welcome!</h1>
+              <p className="text-gray-400 mt-1">
                 {user?.email?.address || user?.wallet?.address || 'User'}
               </p>
             </div>
@@ -155,22 +209,22 @@ export default function Home() {
         </div>
 
         {/* Access Token Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Your Access Token</h2>
+        <div className="bg-gray-900 rounded-2xl shadow-xl p-8 border border-gray-800">
+          <h2 className="text-xl font-bold text-white mb-4">Your Access Token</h2>
           
           {loading && (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-              <p className="ml-3 text-gray-600">Generating your access token...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+              <p className="ml-3 text-gray-400">Generating your access token...</p>
             </div>
           )}
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-              <p className="text-red-800">{error}</p>
+            <div className="bg-red-900 border border-red-700 rounded-lg p-4 mb-4">
+              <p className="text-red-200">{error}</p>
               <button
                 onClick={fetchOrCreateAccessToken}
-                className="mt-2 text-red-600 hover:text-red-700 font-medium underline"
+                className="mt-2 text-red-400 hover:text-red-300 font-medium underline"
               >
                 Try again
               </button>
@@ -179,15 +233,15 @@ export default function Home() {
 
           {accessToken && !loading && (
             <>
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
-                <code className="text-sm text-gray-800 break-all font-mono">
+              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
+                <code className="text-sm text-gray-200 break-all font-mono">
                   {accessToken}
                 </code>
               </div>
 
               <button
                 onClick={copyToClipboard}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl mb-4"
+                className="w-full bg-white hover:bg-gray-100 text-black font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl mb-4"
               >
                 {copied ? '✓ Copied!' : 'Copy Access Token'}
               </button>
