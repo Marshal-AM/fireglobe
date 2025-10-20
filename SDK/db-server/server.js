@@ -21,6 +21,10 @@ const PORT = process.env.PORT || 3001;
 const LIGHTHOUSE_API_KEY = process.env.LIGHTHOUSE_API_KEY;
 const BACKEND_URL = process.env.BACKEND_URL || 'https://backend-739298578243.us-central1.run.app';
 const METRICS_URL = process.env.METRICS_URL || 'https://metricsgen-739298578243.us-central1.run.app';
+// FGC Minting configuration
+const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL;
+const MINTER_PRIVATE_KEY = process.env.PRIVATE_KEY; // hex without 0x or with 0x
+const DATACOIN_ADDRESS = process.env.DATACOIN_ADDRESS || '0x3D2f760c3Bb59BC74B6BE357e3c20Aad708a9667';
 
 // Initialize Supabase
 const supabase = createClient(
@@ -134,6 +138,43 @@ async function storeTestRun(userId, kgHash, metricsHash) {
   }
   
   return data;
+}
+
+/**
+ * On-chain minting helper (FGC on Sepolia)
+ */
+async function mintFgcToAddress(recipientAddress, humanAmount = '1') {
+  if (!SEPOLIA_RPC_URL || !MINTER_PRIVATE_KEY || !DATACOIN_ADDRESS) {
+    throw new Error('Missing on-chain env (SEPOLIA_RPC_URL, PRIVATE_KEY, DATACOIN_ADDRESS)');
+  }
+
+  // Minimal ABI: decimals + mint
+  const DataCoinAbi = [
+    { inputs: [], name: 'decimals', outputs: [{ internalType: 'uint8', name: '', type: 'uint8' }], stateMutability: 'view', type: 'function' },
+    { inputs: [{ internalType: 'address', name: 'to', type: 'address' }, { internalType: 'uint256', name: 'amount', type: 'uint256' }], name: 'mint', outputs: [], stateMutability: 'nonpayable', type: 'function' }
+  ];
+
+  const { createPublicClient, createWalletClient, http, parseUnits } = await import('viem');
+  const { privateKeyToAccount } = await import('viem/accounts');
+  const { sepolia } = await import('viem/chains');
+
+  const account = privateKeyToAccount(('0x' + MINTER_PRIVATE_KEY.replace(/^0x/, '')));
+
+  const publicClient = createPublicClient({ chain: sepolia, transport: http(SEPOLIA_RPC_URL) });
+  const walletClient = createWalletClient({ account, chain: sepolia, transport: http(SEPOLIA_RPC_URL) });
+
+  const decimals = await publicClient.readContract({ address: DATACOIN_ADDRESS, abi: DataCoinAbi, functionName: 'decimals' });
+  const amount = parseUnits(String(humanAmount), decimals);
+
+  const hash = await walletClient.writeContract({
+    address: DATACOIN_ADDRESS,
+    abi: DataCoinAbi,
+    functionName: 'mint',
+    args: [recipientAddress, amount]
+  });
+
+  await publicClient.waitForTransactionReceipt({ hash });
+  return hash;
 }
 
 /**
@@ -311,9 +352,39 @@ app.post('/upload-complete', async (req, res) => {
     
     // Store test run in Supabase
     const testRun = await storeTestRun(userId, kgLighthouse.hash, metricsLighthouse.hash);
-    
+
     console.log(`✅ Complete test run stored: ${testRun.run_id}`);
-    
+
+    // Lookup user's wallet_address and reward 1 FGC
+    let rewardTx = null;
+    try {
+      const { data: userRow, error: userErr } = await supabase
+        .from('users')
+        .select('wallet_address')
+        .eq('user_id', userId)
+        .single();
+
+      if (userErr) throw new Error(userErr.message);
+
+      const recipient = userRow && userRow.wallet_address;
+      if (recipient) {
+        console.log(`🎁 Minting FGC reward to ${recipient}`);
+        rewardTx = await mintFgcToAddress(recipient, '1');
+        console.log(`✅ Reward minted: ${rewardTx}`);
+
+        // Update test_run with reward tx hash
+        const { error: updateErr } = await supabase
+          .from('test_runs')
+          .update({ fgc_reward_tx: rewardTx })
+          .eq('run_id', testRun.run_id);
+        if (updateErr) throw new Error(`Failed to save reward tx: ${updateErr.message}`);
+      } else {
+        console.warn('⚠️ No wallet_address found for user; skipping reward');
+      }
+    } catch (rewardErr) {
+      console.error('❌ Reward minting error:', rewardErr.message);
+    }
+
     res.json({
       success: true,
       run_id: testRun.run_id,
@@ -326,6 +397,7 @@ app.post('/upload-complete', async (req, res) => {
         hash: metricsLighthouse.hash,
         url: `https://gateway.lighthouse.storage/ipfs/${metricsLighthouse.hash}`
       },
+      fgc_reward_tx: rewardTx,
       message: 'Test run completed and stored successfully'
     });
     
