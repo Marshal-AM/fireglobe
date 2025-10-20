@@ -114,10 +114,30 @@ export default function Home() {
   // Login page
   if (!authenticated) {
     return (
-      <div className="min-h-screen flex bg-black p-4 gap-4">
+      <div className="min-h-screen flex bg-black p-4 gap-4 relative">
+        {/* Full page LiquidEther background */}
+        <div className="absolute inset-0">
+          <LiquidEther
+            colors={['#FF4500', '#FF8C00', '#FFD700']}
+            mouseForce={20}
+            cursorSize={100}
+            isViscous={false}
+            viscous={30}
+            iterationsViscous={32}
+            iterationsPoisson={32}
+            resolution={0.5}
+            isBounce={false}
+            autoDemo={true}
+            autoSpeed={0.5}
+            autoIntensity={2.2}
+            takeoverDuration={0.25}
+            autoResumeDelay={3000}
+            autoRampDuration={0.6}
+            style={{ width: '100%', height: '100%', position: 'relative' }}
+          />
+        </div>
         {/* Left Side - Content Canvas */}
-        <div className="flex-1 border-2 border-black rounded-lg p-4 relative overflow-hidden bg-gray-950">
-          {/* LiquidEther with reduced transparency */}
+        <div className="flex-1 relative overflow-hidden">
           <div className="flex flex-col items-center justify-center text-center p-8 h-full relative z-10">
             {/* FireGlobe Title */}
             <div className="mb-8">
@@ -133,7 +153,6 @@ export default function Home() {
                 </AuroraText>
               </div>
             </div>
-            
 
             {/* Login Section */}
             <div className="max-w-md w-full">
@@ -156,27 +175,7 @@ export default function Home() {
         </div>
 
         {/* Right Side - Globe Canvas */}
-        <div className="flex-1 border-2 border-black rounded-lg p-4 relative overflow-hidden">
-          <div className="absolute inset-0">
-            <LiquidEther
-              colors={['#FF4500', '#FF8C00', '#FFD700']}
-              mouseForce={20}
-              cursorSize={100}
-              isViscous={false}
-              viscous={30}
-              iterationsViscous={32}
-              iterationsPoisson={32}
-              resolution={0.5}
-              isBounce={false}
-              autoDemo={true}
-              autoSpeed={0.5}
-              autoIntensity={2.2}
-              takeoverDuration={0.25}
-              autoResumeDelay={3000}
-              autoRampDuration={0.6}
-              style={{ width: '100%', height: '100%', position: 'relative' }}
-            />
-          </div>
+        <div className="flex-1 relative overflow-hidden">
           <div className="flex items-center justify-center h-full relative z-10">
             <div className="w-[500px] h-[500px] relative">
               <Globe className="!absolute !inset-0 !w-full !h-full" />
