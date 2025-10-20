@@ -3,9 +3,11 @@
 import { usePrivy } from '@privy-io/react-auth';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Copy, Check, LogOut, TrendingUp, Activity, ExternalLink } from 'lucide-react';
+import { Copy, Check, LogOut, TrendingUp, Activity, ExternalLink, Home, Archive } from 'lucide-react';
 import { AuroraText } from '@/components/ui/aurora-text';
 import { Sora } from 'next/font/google';
+import ScrollStack, { ScrollStackItem } from '@/components/ScrollStack';
+import Dock from '@/components/Dock';
 
 const sora = Sora({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
@@ -164,10 +166,38 @@ export default function UserDashboard() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-black py-8 px-4">
+  const dockItems = [
+    { 
+      icon: <Home size={18} color="white" />, 
+      label: 'Home', 
+      onClick: () => { setAccessToken(null); logout(); router.replace('/'); } 
+    },
+    { 
+      icon: <Archive size={18} color="white" />, 
+      label: 'Dashboard', 
+      onClick: () => router.push('/user-dashboard') 
+    },
+  ];
 
-      <div className="max-w-7xl mx-auto relative z-10">
+  return (
+    <div className="min-h-screen bg-black py-8 px-4 flex">
+      {/* Left Dock */}
+      <div className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50">
+        <div className="flex flex-col gap-4">
+          {dockItems.map((item, index) => (
+            <button
+              key={index}
+              onClick={item.onClick}
+               className="w-16 h-16 bg-white/10 backdrop-blur-xl border border-black rounded-2xl flex items-center justify-center hover:bg-white/20 transition-all duration-200 hover:scale-110"
+              title={item.label}
+            >
+              {item.icon}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto relative z-10 flex-1">
         {/* Header Section */}
         <div className="backdrop-blur-xl bg-white/5 rounded-3xl shadow-2xl p-8 mb-8 border border-white/10">
           <div className="flex items-center justify-between">
