@@ -6,8 +6,9 @@ import { useRouter } from 'next/navigation';
 import { Copy, Check, LogOut, TrendingUp, Activity, ExternalLink, Home, Archive, Eye } from 'lucide-react';
 import { AuroraText } from '@/components/ui/aurora-text';
 import { Sora } from 'next/font/google';
-import StarBorder from '@/components/StarBorder';
-import { HoverEffect } from '@/components/ui/card-hover-effect';
+import { BackgroundBeams } from '@/components/ui/background-beams';
+import TargetCursor from '@/components/TargetCursor';
+
 
 const sora = Sora({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
@@ -148,7 +149,7 @@ export default function UserDashboard() {
   }, [authenticated, userId]);
 
   const formatAddress = (addr: string) => {
-    return addr; // Show full address
+    return `${addr.slice(0, 8)}...${addr.slice(-3)}`; // Show first 6 chars after 0x + ... + last 3
   };
 
   const successRate = testRuns.length > 0 
@@ -180,7 +181,16 @@ export default function UserDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-black py-8 px-4 flex">
+    <div className="min-h-screen bg-black py-8 px-4 flex relative">
+      {/* Target Cursor */}
+      <TargetCursor 
+        spinDuration={2}
+        hideDefaultCursor={true}
+      />
+      
+      {/* Background Beams */}
+      <BackgroundBeams />
+      
       {/* Left Dock */}
       <div className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50">
         <div className="flex flex-col gap-4">
@@ -188,7 +198,7 @@ export default function UserDashboard() {
             <button
               key={index}
               onClick={item.onClick}
-               className="w-16 h-16 bg-white/10 backdrop-blur-xl border border-black rounded-2xl flex items-center justify-center hover:bg-white/20 transition-all duration-200 hover:scale-110"
+               className="w-16 h-16 bg-black/80 backdrop-blur-xl border border-white rounded-2xl flex items-center justify-center hover:bg-black/90 transition-all duration-200 hover:scale-110"
               title={item.label}
             >
               {item.icon}
@@ -199,7 +209,7 @@ export default function UserDashboard() {
 
       <div className="max-w-7xl mx-auto relative z-10 flex-1">
         {/* Header Section */}
-        <div className="backdrop-blur-xl bg-white/5 rounded-3xl shadow-2xl p-8 mb-8 border border-white/10">
+        <div className="backdrop-blur-xl bg-white/5 rounded-3xl shadow-2xl p-8 mb-8 border border-white/10 hover:border-orange-500/50 transition-all duration-500">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-8">
               <div>
@@ -232,17 +242,17 @@ export default function UserDashboard() {
               {/* Access Token Section */}
               <div className="text-center">
                 <p className="text-gray-400 text-sm">Access Token</p>
-                <div className="flex items-center justify-center h-8">
+                <div className="flex items-center justify-center h-12">
                   {loading && (
                     <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-purple-500 border-t-transparent"></div>
+                      <div className="animate-spin rounded-full h-6 w-6 border-2 border-purple-500 border-t-transparent"></div>
                     </div>
                   )}
                   
                   {error && (
                     <button
                       onClick={fetchOrCreateAccessToken}
-                      className="text-red-400 hover:text-red-300 font-medium underline text-sm"
+                      className="text-red-400 hover:text-red-300 font-medium underline text-base"
                     >
                       Retry
                     </button>
@@ -251,7 +261,7 @@ export default function UserDashboard() {
                   {accessToken && !loading && (
                     <button
                       onClick={copyToClipboard}
-                      className="text-white hover:text-gray-300 font-medium text-sm transition-all duration-200 hover:scale-110"
+                      className="text-white hover:text-gray-300 font-medium text-base transition-all duration-200 hover:scale-110"
                     >
                       {copied ? "Copied!" : "Copy"}
                     </button>
@@ -262,24 +272,21 @@ export default function UserDashboard() {
               {/* FGC Balance Section */}
               <div className="text-center">
                 <p className="text-gray-400 text-sm">FGC Balance</p>
-                <div className="h-8 flex items-center justify-center">
-                  <p className="text-white text-xl font-bold font-mono">
+                <div className="h-12 flex items-center justify-center gap-3">
+                  <img 
+                    src="/FGlogo.png" 
+                    alt="FGC Token" 
+                    className="w-10 h-10 rounded-full"
+                  />
+                  <p className="text-white text-2xl font-bold font-mono">
                     {fgcBalance === null ? '—' : fgcBalance}
                   </p>
                 </div>
               </div>
 
-              {/* Test Runs Section */}
-              <div className="text-center">
-                <p className="text-gray-400 text-sm">Test Runs</p>
-                <div className="h-8 flex items-center justify-center">
-                  <p className="text-white text-xl font-bold">{testRuns.length}</p>
-                </div>
-              </div>
-              
               <button
                 onClick={() => { setAccessToken(null); logout(); router.replace('/'); }}
-                className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-medium py-3 px-6 rounded-xl transition-all duration-200 hover:scale-105"
+                className="shadow-[0_0_0_3px_#000000_inset] px-6 py-2 bg-transparent border border-white dark:border-white dark:text-white text-white rounded-lg font-bold transform hover:-translate-y-1 transition duration-400 flex items-center gap-2"
               >
                 <LogOut className="w-4 h-4" />
                 Logout
@@ -291,8 +298,8 @@ export default function UserDashboard() {
 
 
         {/* Test Runs Section */}
-        <div className="backdrop-blur-xl bg-white/5 rounded-3xl shadow-2xl p-8 border border-white/10">
-          <h2 className={`${sora.className} text-2xl font-bold text-white mb-6 text-center`}>
+        <div className="backdrop-blur-xl bg-white/5 rounded-3xl shadow-2xl p-8 border border-white/10 opacity-80">
+          <h2 className={`${sora.className} text-2xl font-bold text-white mb-6 text-center transform -skew-x-12`}>
             Test Runs History
           </h2>
 
@@ -307,9 +314,9 @@ export default function UserDashboard() {
                 <a
                   key={tr.run_id}
                   href={`/temp-test-details?kg=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.kg_hash}`)}&metrics=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.metrics_hash}`)}`}
-                  className="relative group block p-2 h-full w-full"
+                  className="cursor-target relative group block p-2 h-full w-full"
                 >
-                  <div className="rounded-2xl h-full w-full p-6 overflow-hidden bg-black border border-transparent dark:border-white/[0.2] group-hover:border-orange-500 transition-all duration-300">
+                  <div className="rounded-2xl h-full w-full p-6 overflow-hidden bg-black border border-transparent dark:border-white/[0.2] group-hover:border-orange-500 transition-all duration-500 ease-out transform group-hover:scale-105 group-hover:-translate-y-2 group-hover:shadow-2xl group-hover:shadow-orange-500/20">
                     {/* Header with title and date */}
                     <div className="flex items-center justify-between mb-6">
                       <h4 className="text-zinc-100 font-bold tracking-wide text-xl">
@@ -324,17 +331,38 @@ export default function UserDashboard() {
                     <div className="space-y-3">
                       <div>
                         <p className="text-zinc-400 text-sm mb-1">Knowledge Id:</p>
-                        <p className="text-zinc-100 font-mono text-sm break-all">
+                        <AuroraText 
+                          className="font-mono text-sm break-all"
+                          colors={["#FF4500", "#FF8C00", "#FFD700", "#FF6B35"]}
+                          speed={1.2}
+                        >
                           {tr.kg_hash.slice(0, 12)}...
-                        </p>
+                        </AuroraText>
                       </div>
                       
                       <div>
                         <p className="text-zinc-400 text-sm mb-1">Metrics:</p>
-                        <p className="text-zinc-100 font-mono text-sm break-all">
+                        <AuroraText 
+                          className="font-mono text-sm break-all"
+                          colors={["#FF4500", "#FF8C00", "#FFD700", "#FF6B35"]}
+                          speed={1.2}
+                        >
                           {tr.metrics_hash.slice(0, 12)}...
-                        </p>
+                        </AuroraText>
                       </div>
+                    </div>
+
+                    {/* Status Indicator */}
+                    <div className="absolute bottom-4 right-4">
+                      {tr.fgc_reward_tx ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30">
+                          ✓ Rewarded
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                          Pending
+                        </span>
+                      )}
                     </div>
                   </div>
                 </a>
