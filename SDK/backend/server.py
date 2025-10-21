@@ -80,7 +80,7 @@ class ConversationKnowledgeGraph:
         return f"Successfully added conversation: {conversation_id}"
     
     def add_blockscout_analysis(self, transaction_hash: str, conversation_id: str, 
-                               analysis: str, timestamp: str, chain_id: str = ""):
+                               analysis: str, timestamp: str, chain_id: str = "", raw_data: Optional[Dict[str, Any]] = None):
         """Add BlockScout analysis linked to a conversation."""
         print(f"[KG] add_blockscout_analysis called with:")
         print(f"[KG]   - transaction_hash: {transaction_hash}")
@@ -115,12 +115,19 @@ class ConversationKnowledgeGraph:
             "chain_id": chain_id,
             "analysis": analysis,
             "timestamp": timestamp,
-            "success": True
+            "success": True,
+            "raw_data": raw_data
         }
         tx_data_json = json.dumps(tx_data)
         self.metta.space().add_atom(E(S("conversation_tx_data"), S(conv_id), ValueAtom(tx_data_json)))
         print(f"[KG] Stored direct tx_data for conversation: {conv_id}")
         print(f"[KG] Transaction data stored successfully")
+        
+        # Store raw data separately for easier access
+        if raw_data:
+            raw_data_json = json.dumps(raw_data)
+            self.metta.space().add_atom(E(S("transaction_raw_data"), S(tx_id), ValueAtom(raw_data_json)))
+            print(f"[KG] Stored raw transaction data for tx: {tx_id}")
         
         return f"Successfully added BlockScout analysis for transaction: {transaction_hash}"
     
@@ -251,6 +258,13 @@ class ConversationKnowledgeGraph:
         chain_results = self.metta.run(query_str)
         if chain_results and chain_results[0]:
             result['chain_id'] = chain_results[0][0].get_object().value
+        
+        # Get raw data
+        query_str = f'!(match &self (transaction_raw_data {tx_id} $raw_data) $raw_data)'
+        raw_data_results = self.metta.run(query_str)
+        if raw_data_results and raw_data_results[0]:
+            raw_data_json = raw_data_results[0][0].get_object().value
+            result['raw_data'] = json.loads(raw_data_json)
         
         return result
     
@@ -489,6 +503,7 @@ class TransactionAnalysisResponse(Model):
     conversation_id: str
     transaction_hash: str
     analysis: str
+    raw_data: Optional[Dict[str, Any]] = None
     timestamp: str
 
 
@@ -523,14 +538,21 @@ def extract_transaction_from_message(message: str) -> Optional[Dict[str, str]]:
     """Extract transaction hash and chain info from a message."""
     import re
     
-    # Look for transaction hash pattern (0x followed by 64 hex characters)
-    tx_pattern = r'0x[a-fA-F0-9]{64}'
+    # Look for transaction hash pattern (0x followed by hex characters)
+    # Ethereum transaction hashes are typically 0x + 64 hex characters = 66 characters total
+    # But some systems might truncate or use different formats, so we'll be more flexible
+    tx_pattern = r'0x[a-fA-F0-9]{60,66}'
     tx_match = re.search(tx_pattern, message)
     
     if not tx_match:
         return None
     
     tx_hash = tx_match.group()
+    
+    # Debug logging
+    print(f"[TX-DETECT] Found transaction hash: {tx_hash}")
+    print(f"[TX-DETECT] Hash length: {len(tx_hash)}")
+    print(f"[TX-DETECT] Message context: {message[:200]}...")
     
     # Try to detect chain from context
     message_lower = message.lower()
@@ -610,6 +632,77 @@ async def get_transaction_analysis_from_blockscout(tx_hash: str) -> Optional[Dic
     except Exception as e:
         print(f"Error getting analysis from BlockscoutAgent: {e}")
         return None
+
+
+async def get_transaction_raw_data_from_blockscout(tx_hash: str) -> Optional[Dict[str, Any]]:
+    """Get raw transaction data from BlockScout MCP via BlockscoutAgent."""
+    import httpx
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            # Call the test-blockscout endpoint to get raw data
+            response = await client.post(
+                f"{BLOCKSCOUT_AGENT_URL}/rest/test-blockscout",
+                json={"tx_hash": tx_hash, "chain_id": "84532", "include_logs": True, "include_traces": False}
+            )
+            if response.status_code == 200:
+                result = response.json()
+                if result.get("success") and result.get("data"):
+                    return result["data"]
+            return None
+    except Exception as e:
+        print(f"Error getting raw data from BlockscoutAgent: {e}")
+        return None
+
+
+async def auto_fetch_missing_raw_data(ctx: Context, transactions: List[Dict[str, Any]]):
+    """Automatically fetch raw data for transactions that don't have it"""
+    ctx.logger.info("[AUTO-FETCH] Starting auto-fetch for missing raw data")
+    
+    missing_raw_data_txs = []
+    for tx in transactions:
+        tx_hash = tx.get('transaction_hash', '')
+        if tx_hash and not tx.get('raw_data'):
+            missing_raw_data_txs.append(tx_hash)
+            ctx.logger.info(f"[AUTO-FETCH] Transaction {tx_hash} missing raw data")
+    
+    if not missing_raw_data_txs:
+        ctx.logger.info("[AUTO-FETCH] No transactions missing raw data")
+        return
+    
+    ctx.logger.info(f"[AUTO-FETCH] Found {len(missing_raw_data_txs)} transactions missing raw data")
+    
+    # Fetch raw data for each missing transaction
+    for tx_hash in missing_raw_data_txs:
+        try:
+            ctx.logger.info(f"[AUTO-FETCH] Fetching raw data for {tx_hash}")
+            
+            # Fetch raw data from BlockScoutAgent
+            raw_data = await get_transaction_raw_data_from_blockscout(tx_hash)
+            
+            if raw_data:
+                ctx.logger.info(f"[AUTO-FETCH] Successfully fetched raw data for {tx_hash}")
+                
+                # Store in Knowledge Graph
+                try:
+                    kg_result = conversation_kg.add_blockscout_analysis(
+                        transaction_hash=tx_hash,
+                        conversation_id="auto_fetch",  # Use a placeholder conversation ID
+                        analysis="Raw data auto-fetched",
+                        timestamp=datetime.utcnow().isoformat(),
+                        chain_id="84532",
+                        raw_data=raw_data
+                    )
+                    ctx.logger.info(f"[AUTO-FETCH] Stored raw data in KG for {tx_hash}: {kg_result}")
+                except Exception as kg_error:
+                    ctx.logger.error(f"[AUTO-FETCH] Failed to store raw data in KG for {tx_hash}: {kg_error}")
+            else:
+                ctx.logger.warning(f"[AUTO-FETCH] No raw data found for {tx_hash}")
+                
+        except Exception as e:
+            ctx.logger.error(f"[AUTO-FETCH] Error fetching raw data for {tx_hash}: {e}")
+    
+    ctx.logger.info("[AUTO-FETCH] Auto-fetch completed")
 
 
 def generate_fallback_personalities() -> List[Dict[str, str]]:
@@ -692,7 +785,7 @@ agent = Agent(
     port=8080,
     seed="cdp agent tester backend seed phrase",
     mailbox=f"{AGENTVERSE_API_KEY}" if AGENTVERSE_API_KEY else None,
-    endpoint=["http://localhost:8080/submit"]
+    endpoint=["https://backend-739298578243.us-central1.run.app/submit"]
 )
 
 
@@ -907,9 +1000,11 @@ Your response:"""
         message = message.split("\n")[0].strip()
         
         # Check if this message contains a transaction hash
+        ctx.logger.info(f"[TX-CHECK] Checking message for transaction hash: {message[:100]}...")
         tx_info = extract_transaction_from_message(message)
         if tx_info:
-            ctx.logger.info(f"Transaction detected in message: {tx_info['tx_hash']}")
+            ctx.logger.info(f"[TX-CHECK] Transaction detected in message: {tx_info['tx_hash']}")
+            ctx.logger.info(f"[TX-CHECK] Chain ID: {tx_info['chain_id']}")
             # Send transaction context to BlockscoutAgent asynchronously
             import asyncio
             asyncio.create_task(send_transaction_context_to_blockscout(
@@ -919,6 +1014,8 @@ Your response:"""
                 previous_messages + [{"role": "user", "content": message}], 
                 tx_info
             ))
+        else:
+            ctx.logger.info(f"[TX-CHECK] No transaction hash detected in message")
         
         return PersonalityMessageResponse(message=message)
         
@@ -1021,11 +1118,16 @@ Return ONLY the JSON. No markdown, no explanations."""
 async def handle_transaction_analysis_response(ctx: Context, sender: str, msg: TransactionAnalysisResponse):
     """Handle transaction analysis response from BlockscoutAgent."""
     ctx.logger.info(f"[A2A] Received transaction analysis from BlockscoutAgent for tx: {msg.transaction_hash}")
+    ctx.logger.info(f"[A2A] Sender: {sender}")
     ctx.logger.info(f"[A2A] Conversation ID: {msg.conversation_id}")
     ctx.logger.info(f"[A2A] Timestamp: {msg.timestamp}")
     ctx.logger.info(f"[A2A] Success: {msg.success}")
     ctx.logger.info(f"[A2A] Analysis length: {len(msg.analysis)}")
     ctx.logger.info(f"[A2A] Analysis preview: {msg.analysis[:200]}...")
+    ctx.logger.info(f"[A2A] Raw data available: {msg.raw_data is not None}")
+    if msg.raw_data:
+        ctx.logger.info(f"[A2A] Raw data keys: {list(msg.raw_data.keys()) if isinstance(msg.raw_data, dict) else 'Not a dict'}")
+        ctx.logger.info(f"[A2A] Raw data preview: {str(msg.raw_data)[:200]}...")
     
     # Store the analysis for SDK retrieval
     transaction_analyses[msg.transaction_hash] = {
@@ -1042,13 +1144,17 @@ async def handle_transaction_analysis_response(ctx: Context, sender: str, msg: T
     try:
         ctx.logger.info(f"[A2A] Attempting to store in Knowledge Graph...")
         ctx.logger.info(f"[A2A] KG params: tx_hash={msg.transaction_hash}, conv_id={msg.conversation_id}")
+        ctx.logger.info(f"[A2A] Raw data available: {msg.raw_data is not None}")
+        if msg.raw_data:
+            ctx.logger.info(f"[A2A] Raw data keys: {list(msg.raw_data.keys()) if isinstance(msg.raw_data, dict) else 'Not a dict'}")
         
         kg_result = conversation_kg.add_blockscout_analysis(
             transaction_hash=msg.transaction_hash,
             conversation_id=msg.conversation_id,
             analysis=msg.analysis,
             timestamp=msg.timestamp,
-            chain_id="84532"  # Default to Base Sepolia
+            chain_id="84532",  # Default to Base Sepolia
+            raw_data=msg.raw_data
         )
         ctx.logger.info(f"[A2A] Knowledge Graph BlockScout storage result: {kg_result}")
         ctx.logger.info(f"[A2A] Successfully stored transaction analysis in KG")
@@ -1083,6 +1189,7 @@ async def handle_store_conversation(ctx: Context, req: ConversationStorageReques
                     "chain_id": tx_analysis.get('chain', '84532'),
                     "analysis": tx_analysis.get('analysis', ''),
                     "timestamp": tx_analysis.get('timestamp', ''),
+                    "raw_data": tx_analysis.get('raw_data'),
                     "success": True
                 })
         
@@ -1120,7 +1227,8 @@ async def handle_store_conversation(ctx: Context, req: ConversationStorageReques
                     conversation_id=req.conversation_id,
                     analysis=tx_data['analysis'],
                     timestamp=tx_data['timestamp'],
-                    chain_id=tx_data['chain_id']
+                    chain_id=tx_data['chain_id'],
+                    raw_data=tx_data.get('raw_data')
                 )
                 ctx.logger.info(f"[STORE-CONV] KG transaction storage: {tx_kg_result}")
                 
@@ -1409,6 +1517,74 @@ class KGLastEntryResponse(Model):
     message: str
 
 
+# New endpoint to fetch and store raw data for existing transactions
+class FetchRawDataRequest(Model):
+    """Request to fetch raw data for a transaction"""
+    transaction_hash: str
+    chain_id: str = "84532"
+
+
+class FetchRawDataResponse(Model):
+    """Response for raw data fetch"""
+    success: bool
+    message: str
+    raw_data: Optional[Dict[str, Any]] = None
+
+
+@agent.on_rest_post("/rest/fetch-raw-data", FetchRawDataRequest, FetchRawDataResponse)
+async def handle_fetch_raw_data(ctx: Context, req: FetchRawDataRequest) -> FetchRawDataResponse:
+    """Fetch raw transaction data and store it in Knowledge Graph"""
+    ctx.logger.info(f"Received request to fetch raw data for tx: {req.transaction_hash}")
+    
+    try:
+        # Fetch raw data from BlockScoutAgent
+        raw_data = await get_transaction_raw_data_from_blockscout(req.transaction_hash)
+        
+        if raw_data:
+            ctx.logger.info(f"Successfully fetched raw data for tx: {req.transaction_hash}")
+            ctx.logger.info(f"Raw data keys: {list(raw_data.keys()) if isinstance(raw_data, dict) else 'Not a dict'}")
+            
+            # Store in Knowledge Graph
+            try:
+                kg_result = conversation_kg.add_blockscout_analysis(
+                    transaction_hash=req.transaction_hash,
+                    conversation_id="manual_fetch",  # Use a placeholder conversation ID
+                    analysis="Raw data fetched manually",
+                    timestamp=datetime.utcnow().isoformat(),
+                    chain_id=req.chain_id,
+                    raw_data=raw_data
+                )
+                ctx.logger.info(f"Stored raw data in KG: {kg_result}")
+                
+                return FetchRawDataResponse(
+                    success=True,
+                    message=f"Successfully fetched and stored raw data for transaction {req.transaction_hash}",
+                    raw_data=raw_data
+                )
+            except Exception as kg_error:
+                ctx.logger.error(f"Failed to store raw data in KG: {kg_error}")
+                return FetchRawDataResponse(
+                    success=False,
+                    message=f"Fetched raw data but failed to store: {str(kg_error)}",
+                    raw_data=raw_data
+                )
+        else:
+            ctx.logger.warning(f"No raw data found for transaction: {req.transaction_hash}")
+            return FetchRawDataResponse(
+                success=False,
+                message=f"No raw data found for transaction {req.transaction_hash}",
+                raw_data=None
+            )
+        
+    except Exception as e:
+        ctx.logger.error(f"Failed to fetch raw data: {str(e)}")
+        return FetchRawDataResponse(
+            success=False,
+            message=f"Failed to fetch raw data: {str(e)}",
+            raw_data=None
+        )
+
+
 @agent.on_rest_get("/rest/kg/last-entry", KGLastEntryResponse)
 async def handle_kg_last_entry(ctx: Context) -> KGLastEntryResponse:
     """Get the last inserted entry from the Knowledge Graph with complete transaction analysis data"""
@@ -1423,6 +1599,17 @@ async def handle_kg_last_entry(ctx: Context) -> KGLastEntryResponse:
         ctx.logger.info("[LAST-ENTRY] Fetching all transactions...")
         transactions = conversation_kg.get_all_transactions()
         ctx.logger.info(f"[LAST-ENTRY] Found {len(transactions)} transactions")
+        
+        # Debug: Log transaction details
+        for i, tx in enumerate(transactions):
+            ctx.logger.info(f"[LAST-ENTRY] Transaction {i}: {tx.get('transaction_hash', 'unknown')} - raw_data: {tx.get('raw_data') is not None}")
+        
+        # Auto-fetch raw data for transactions that don't have it
+        await auto_fetch_missing_raw_data(ctx, transactions)
+        
+        # Re-fetch transactions after auto-fetching raw data
+        transactions = conversation_kg.get_all_transactions()
+        ctx.logger.info(f"[LAST-ENTRY] After auto-fetch, found {len(transactions)} transactions")
         
         # Find the most recent entry by timestamp
         last_conversation = None
@@ -1519,17 +1706,37 @@ def enhance_conversation_with_transactions(conversation: Dict[str, Any], all_tra
     
     # Get existing transactions from conversation
     existing_transactions = conversation.get('transactions', [])
+    print(f"[ENHANCE] Enhancing conversation with {len(existing_transactions)} existing transactions")
+    print(f"[ENHANCE] Available all_transactions: {len(all_transactions)}")
     
-    # If transactions are already complete (have analysis), use them as-is
+    # If transactions are already complete (have analysis), enhance them with raw data from KG
     if existing_transactions and any(tx.get('analysis') for tx in existing_transactions):
-        # Transactions already have complete data, just ensure format is consistent
+        # Transactions already have complete data, but check for raw data in KG
         enhanced_transactions = []
         for tx in existing_transactions:
+            tx_hash = tx.get('transaction_hash', '')
+            
+            # Try to find raw data in the Knowledge Graph
+            raw_data = None
+            if tx_hash:
+                # Query the Knowledge Graph for raw data
+                try:
+                    tx_id = tx_hash.lower().replace("0x", "tx_")
+                    query_str = f'!(match &self (transaction_raw_data {tx_id} $raw_data) $raw_data)'
+                    raw_data_results = conversation_kg.metta.run(query_str)
+                    if raw_data_results and raw_data_results[0]:
+                        raw_data_json = raw_data_results[0][0].get_object().value
+                        raw_data = json.loads(raw_data_json)
+                        print(f"[ENHANCE] Found raw data for tx {tx_hash} in KG")
+                except Exception as e:
+                    print(f"[ENHANCE] Error fetching raw data for {tx_hash}: {e}")
+            
             enhanced_tx = {
                 "transaction_hash": tx.get('transaction_hash', ''),
                 "chain_id": tx.get('chain_id', '84532'),
                 "analysis": tx.get('analysis', ''),
                 "timestamp": tx.get('timestamp', ''),
+                "raw_data": raw_data or tx.get('raw_data'),  # Use KG data if available, fallback to existing
                 "success": tx.get('success', True)
             }
             enhanced_transactions.append(enhanced_tx)
@@ -1555,6 +1762,7 @@ def enhance_conversation_with_transactions(conversation: Dict[str, Any], all_tra
                     "chain_id": complete_tx_data.get('chain_id', '84532'),  # Default to Base Sepolia
                     "analysis": complete_tx_data.get('analysis', ''),
                     "timestamp": complete_tx_data.get('timestamp', ''),
+                    "raw_data": complete_tx_data.get('raw_data'),
                     "success": complete_tx_data.get('success', True)
                 }
                 enhanced_transactions.append(enhanced_tx)
@@ -1565,6 +1773,7 @@ def enhance_conversation_with_transactions(conversation: Dict[str, Any], all_tra
                     "chain_id": tx.get('chain_id', '84532'),
                     "analysis": tx.get('analysis', 'No analysis available'),
                     "timestamp": tx.get('timestamp', ''),
+                    "raw_data": tx.get('raw_data'),
                     "success": tx.get('success', False)
                 }
                 enhanced_transactions.append(enhanced_tx)
@@ -1597,6 +1806,8 @@ async def startup_handler(ctx: Context):
     ctx.logger.info("  - GET  /rest/kg/all-conversations")
     ctx.logger.info("  - GET  /rest/kg/all-transactions")
     ctx.logger.info("  - GET  /rest/kg/last-entry")
+    ctx.logger.info("  - POST /rest/fetch-raw-data")
+    ctx.logger.info("🔄 Auto-fetch: /rest/kg/last-entry automatically fetches missing raw data")
     ctx.logger.info("🎯 Focus: Testing DeFi capabilities on Base Sepolia with existing funds!")
 
 
@@ -1631,4 +1842,3 @@ if __name__ == "__main__":
         agent.run()
     except KeyboardInterrupt:
         print("\n🛑 Shutting down...")
-

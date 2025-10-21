@@ -19,7 +19,7 @@
     "@langchain/core": "^0.3.19",
     "@langchain/langgraph": "^0.2.21",
     "@langchain/openai": "^0.3.14",
-    "cdp-agent-tester": "^1.6.1",
+    "fireglobe-sdk-client": "^1.6.2",
     "dotenv": "^16.4.5",
     "zod": "^3.22.4"
   },

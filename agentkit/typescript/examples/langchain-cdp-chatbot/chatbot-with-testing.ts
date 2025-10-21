@@ -20,7 +20,7 @@ import * as dotenv from "dotenv";
 import * as readline from "readline";
 
 // Import the testing SDK
-import { AgentTester, CDPAgentKitAdapter } from "cdp-agent-tester";
+import { AgentTester, CDPAgentKitAdapter } from "fireglobe-sdk-client";
 
 dotenv.config();
 

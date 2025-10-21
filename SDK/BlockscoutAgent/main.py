@@ -103,6 +103,7 @@ class TransactionAnalysisResponse(Model):
     conversation_id: str
     transaction_hash: str
     analysis: str
+    raw_data: Optional[Dict[str, Any]] = None
     timestamp: str
 
 
@@ -560,6 +561,7 @@ class BlockscoutAgent:
                     conversation_id=msg.conversation_id,
                     transaction_hash=msg.transaction_hash,
                     analysis=analysis,
+                    raw_data=tx_data,
                     timestamp=datetime.utcnow().isoformat()
                 )
                 
@@ -590,6 +592,7 @@ class BlockscoutAgent:
                     conversation_id=msg.conversation_id,
                     transaction_hash=msg.transaction_hash,
                     analysis=f"Analysis failed: {str(e)}",
+                    raw_data=None,
                     timestamp=datetime.utcnow().isoformat()
                 )
                 

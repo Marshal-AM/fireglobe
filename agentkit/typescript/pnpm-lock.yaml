@@ -265,12 +265,12 @@ importers:
       '@langchain/openai':
         specifier: ^0.3.14
         version: 0.3.17(@langchain/core@0.3.30(openai@4.89.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2)))(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))
-      cdp-agent-tester:
-        specifier: file:../../../../SDK/cdp-agent-tester-sdk
-        version: file:../../SDK/cdp-agent-tester-sdk(@langchain/core@0.3.30(openai@4.89.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2)))(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       dotenv:
         specifier: ^16.4.5
         version: 16.4.7
+      fireglobe-sdk-client:
+        specifier: ^1.6.2
+        version: 1.6.2(@langchain/core@0.3.30(openai@4.89.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2)))(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       zod:
         specifier: ^3.22.4
         version: 3.24.2
@@ -2907,14 +2907,6 @@ packages:
     resolution: {integrity: sha512-F705O3xrsUtgt98j7leetNhTWPe+5S72rlL5O4jA1pKqBVQ/dT1O1D6PFxmSXvc0SUOinWS57DKx0I3CHrXJHQ==}
     hasBin: true
 
-  cdp-agent-tester@file:../../SDK/cdp-agent-tester-sdk:
-    resolution: {directory: ../../SDK/cdp-agent-tester-sdk, type: directory}
-    peerDependencies:
-      '@langchain/core': '>=0.1.0'
-    peerDependenciesMeta:
-      '@langchain/core':
-        optional: true
-
   chalk@4.1.2:
     resolution: {integrity: sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA==}
     engines: {node: '>=10'}
@@ -3705,6 +3697,14 @@ packages:
   find-up@5.0.0:
     resolution: {integrity: sha512-78/PXT1wlLLDgTzDs7sjq9hzz0vXD+zn+7wypEe4fXQxCmdmqfGsEPQxmiCSQI3ajFV91bVSsvNtrJRiW6nGng==}
     engines: {node: '>=10'}
+
+  fireglobe-sdk-client@1.6.2:
+    resolution: {integrity: sha512-cdPDn4eCwz6zU0I+k89ztqT+nI6XgGjQiV5dhKsPyWRZLTnZjEE4QGZeKITsaB5lL6aHNSI/nV5NR4A01x6e+w==}
+    peerDependencies:
+      '@langchain/core': '>=0.1.0'
+    peerDependenciesMeta:
+      '@langchain/core':
+        optional: true
 
   flat-cache@3.2.0:
     resolution: {integrity: sha512-CYcENa+FtcUKLmhhqyctpclsq7QF38pKjZHsGNiSQF5r4FtoKDWabFDl3hzaEQMvT1LHEysw5twgLvpYYb4vbw==}
@@ -9157,7 +9157,7 @@ snapshots:
   '@types/node-fetch@2.6.12':
     dependencies:
       '@types/node': 20.17.27
-      form-data: 4.0.2
+      form-data: 4.0.4
 
   '@types/node@12.20.55': {}
 
@@ -10488,18 +10488,6 @@ snapshots:
 
   canonicalize@2.1.0: {}
 
-  cdp-agent-tester@file:../../SDK/cdp-agent-tester-sdk(@langchain/core@0.3.30(openai@4.89.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2)))(bufferutil@4.0.9)(utf-8-validate@5.0.10):
-    dependencies:
-      axios: 1.12.2
-      uuid: 9.0.1
-      ws: 8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10)
-    optionalDependencies:
-      '@langchain/core': 0.3.30(openai@4.89.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2))
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - utf-8-validate
-
   chalk@4.1.2:
     dependencies:
       ansi-styles: 4.3.0
@@ -11480,6 +11468,18 @@ snapshots:
       locate-path: 6.0.0
       path-exists: 4.0.0
 
+  fireglobe-sdk-client@1.6.2(@langchain/core@0.3.30(openai@4.89.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2)))(bufferutil@4.0.9)(utf-8-validate@5.0.10):
+    dependencies:
+      axios: 1.12.2
+      uuid: 9.0.1
+      ws: 8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+    optionalDependencies:
+      '@langchain/core': 0.3.30(openai@4.89.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2))
+    transitivePeerDependencies:
+      - bufferutil
+      - debug
+      - utf-8-validate
+
   flat-cache@3.2.0:
     dependencies:
       flatted: 3.3.3
@@ -11722,7 +11722,7 @@ snapshots:
   http-proxy@1.18.1:
     dependencies:
       eventemitter3: 4.0.7
-      follow-redirects: 1.15.9
+      follow-redirects: 1.15.11
       requires-port: 1.0.0
     transitivePeerDependencies:
       - debug

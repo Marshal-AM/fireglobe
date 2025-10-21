@@ -1,6 +1,6 @@
 {
   "name": "fireglobe-sdk-client",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "description": "Universal testing SDK for CDP AgentKit agents using AI-generated personalities with comprehensive metrics generation. Test any agent with 10 AI personalities - no backend setup required! Features automatic transaction detection, real-time BlockscoutAgent analysis, intelligent conversation flow, deployed backend integration, and deployed Metrics Generator with comprehensive performance metrics.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
