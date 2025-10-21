@@ -3,11 +3,11 @@
 import { usePrivy } from '@privy-io/react-auth';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Copy, Check, LogOut, TrendingUp, Activity, ExternalLink, Home, Archive } from 'lucide-react';
+import { Copy, Check, LogOut, TrendingUp, Activity, ExternalLink, Home, Archive, Eye } from 'lucide-react';
 import { AuroraText } from '@/components/ui/aurora-text';
 import { Sora } from 'next/font/google';
-import ScrollStack, { ScrollStackItem } from '@/components/ScrollStack';
-import Dock from '@/components/Dock';
+import StarBorder from '@/components/StarBorder';
+import { HoverEffect } from '@/components/ui/card-hover-effect';
 
 const sora = Sora({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
@@ -201,7 +201,7 @@ export default function UserDashboard() {
         {/* Header Section */}
         <div className="backdrop-blur-xl bg-white/5 rounded-3xl shadow-2xl p-8 mb-8 border border-white/10">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-8">
               <div>
                 <div className={`${sora.className} text-3xl font-bold tracking-tight flex items-center transform -skew-x-12`}>
                   <span className="text-white">Welcome</span>
@@ -225,99 +225,74 @@ export default function UserDashboard() {
                   )}
                 </div>
               </div>
+              
             </div>
-            <button
-              onClick={() => { setAccessToken(null); logout(); router.replace('/'); }}
-              className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-medium py-3 px-6 rounded-xl transition-all duration-200 hover:scale-105"
-            >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </button>
-          </div>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {/* FGC Balance Card */}
-          <div className="backdrop-blur-xl bg-gradient-to-br from-purple-500/10 to-purple-500/5 rounded-2xl shadow-xl p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all duration-300 hover:scale-105">
-            <p className="text-gray-400 text-sm mb-1">FGC Balance</p>
-            <p className="text-3xl font-bold text-white font-mono">
-              {fgcBalance === null ? '—' : fgcBalance}
-            </p>
-            <p className="text-purple-400 text-xs mt-1">FGC</p>
-          </div>
-
-          {/* Total Test Runs Card */}
-          <div className="backdrop-blur-xl bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 rounded-2xl shadow-xl p-6 border border-cyan-500/20 hover:border-cyan-500/40 transition-all duration-300 hover:scale-105">
-            <p className="text-gray-400 text-sm mb-1">Total Test Runs</p>
-            <p className="text-3xl font-bold text-white">{testRuns.length}</p>
-            <p className="text-cyan-400 text-xs mt-1">All time</p>
-          </div>
-
-          {/* Success Rate Card */}
-          <div className="backdrop-blur-xl bg-gradient-to-br from-green-500/10 to-green-500/5 rounded-2xl shadow-xl p-6 border border-green-500/20 hover:border-green-500/40 transition-all duration-300 hover:scale-105">
-            <p className="text-gray-400 text-sm mb-1">Success Rate</p>
-            <p className="text-3xl font-bold text-white">{successRate}%</p>
-            <p className="text-green-400 text-xs mt-1">Rewarded runs</p>
-          </div>
-        </div>
-
-        {/* Access Token Section */}
-        <div className="backdrop-blur-xl bg-white/5 rounded-3xl shadow-2xl p-8 mb-8 border border-white/10">
-          <h2 className="text-2xl font-bold text-white mb-6">
-            Access Token
-          </h2>
-
-          {loading && (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-10 w-10 border-4 border-purple-500 border-t-transparent"></div>
-              <p className="ml-4 text-gray-300">Generating your access token...</p>
-            </div>
-          )}
-
-          {error && (
-            <div className="backdrop-blur-xl bg-red-500/10 border border-red-500/30 rounded-2xl p-6 mb-6">
-              <p className="text-red-300 mb-3">{error}</p>
-              <button
-                onClick={fetchOrCreateAccessToken}
-                className="text-red-400 hover:text-red-300 font-medium underline"
-              >
-                Try again
-              </button>
-            </div>
-          )}
-
-          {accessToken && !loading && (
-            <div className="space-y-4">
-              <div className="backdrop-blur-xl bg-slate-900/50 border border-slate-700/50 rounded-2xl p-6 group hover:border-purple-500/50 transition-all duration-300">
-                <code className="text-sm text-gray-300 break-all font-mono block">
-                  {accessToken}
-                </code>
+            
+            <div className="flex items-center gap-6">
+              {/* Access Token Section */}
+              <div className="text-center">
+                <p className="text-gray-400 text-sm">Access Token</p>
+                <div className="flex items-center justify-center h-8">
+                  {loading && (
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-purple-500 border-t-transparent"></div>
+                    </div>
+                  )}
+                  
+                  {error && (
+                    <button
+                      onClick={fetchOrCreateAccessToken}
+                      className="text-red-400 hover:text-red-300 font-medium underline text-sm"
+                    >
+                      Retry
+                    </button>
+                  )}
+                  
+                  {accessToken && !loading && (
+                    <button
+                      onClick={copyToClipboard}
+                      className="text-white hover:text-gray-300 font-medium text-sm transition-all duration-200 hover:scale-110"
+                    >
+                      {copied ? "Copied!" : "Copy"}
+                    </button>
+                  )}
+                </div>
               </div>
 
+              {/* FGC Balance Section */}
+              <div className="text-center">
+                <p className="text-gray-400 text-sm">FGC Balance</p>
+                <div className="h-8 flex items-center justify-center">
+                  <p className="text-white text-xl font-bold font-mono">
+                    {fgcBalance === null ? '—' : fgcBalance}
+                  </p>
+                </div>
+              </div>
+
+              {/* Test Runs Section */}
+              <div className="text-center">
+                <p className="text-gray-400 text-sm">Test Runs</p>
+                <div className="h-8 flex items-center justify-center">
+                  <p className="text-white text-xl font-bold">{testRuns.length}</p>
+                </div>
+              </div>
+              
               <button
-                onClick={copyToClipboard}
-                className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 text-white font-semibold py-4 px-6 rounded-2xl transition-all duration-200 shadow-lg hover:shadow-purple-500/50 hover:scale-105"
+                onClick={() => { setAccessToken(null); logout(); router.replace('/'); }}
+                className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-medium py-3 px-6 rounded-xl transition-all duration-200 hover:scale-105"
               >
-                {copied ? (
-                  <>
-                    <Check className="w-5 h-5" />
-                    Copied to Clipboard!
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-5 h-5" />
-                    Copy Access Token
-                  </>
-                )}
+                <LogOut className="w-4 h-4" />
+                Logout
               </button>
             </div>
-          )}
+          </div>
         </div>
+
+
 
         {/* Test Runs Section */}
         <div className="backdrop-blur-xl bg-white/5 rounded-3xl shadow-2xl p-8 border border-white/10">
-          <h2 className="text-2xl font-bold text-white mb-6">
+          <h2 className={`${sora.className} text-2xl font-bold text-white mb-6 text-center`}>
             Test Runs History
           </h2>
 
@@ -327,71 +302,42 @@ export default function UserDashboard() {
               <p className="text-gray-500 text-sm mt-2">Your test runs will appear here</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {testRuns.map((tr, idx) => (
-                <div
+                <a
                   key={tr.run_id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => router.push(`/temp-test-details?kg=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.kg_hash}`)}&metrics=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.metrics_hash}`)}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      router.push(`/temp-test-details?kg=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.kg_hash}`)}&metrics=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.metrics_hash}`)}`);
-                    }
-                  }}
-                  className="backdrop-blur-xl bg-slate-900/30 border border-slate-700/50 rounded-2xl p-6 hover:border-purple-500/50 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-purple-500/20 group"
+                  href={`/temp-test-details?kg=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.kg_hash}`)}&metrics=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.metrics_hash}`)}`}
+                  className="relative group block p-2 h-full w-full"
                 >
-                  {/* Header */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center border border-purple-500/30">
-                        <span className="text-purple-400 font-bold">#{testRuns.length - idx}</span>
-                      </div>
+                  <div className="rounded-2xl h-full w-full p-6 overflow-hidden bg-black border border-transparent dark:border-white/[0.2] group-hover:border-orange-500 transition-all duration-300">
+                    {/* Header with title and date */}
+                    <div className="flex items-center justify-between mb-6">
+                      <h4 className="text-zinc-100 font-bold tracking-wide text-xl">
+                        Test Run #{idx + 1}
+                      </h4>
+                      <span className="text-zinc-400 text-sm">
+                        {new Date(tr.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    
+                    {/* Knowledge and Metrics */}
+                    <div className="space-y-3">
                       <div>
-                        <p className="text-white font-medium">Test Run</p>
-                        <p className="text-xs text-gray-400">{new Date(tr.created_at).toLocaleString()}</p>
+                        <p className="text-zinc-400 text-sm mb-1">Knowledge Id:</p>
+                        <p className="text-zinc-100 font-mono text-sm break-all">
+                          {tr.kg_hash.slice(0, 12)}...
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <p className="text-zinc-400 text-sm mb-1">Metrics:</p>
+                        <p className="text-zinc-100 font-mono text-sm break-all">
+                          {tr.metrics_hash.slice(0, 12)}...
+                        </p>
                       </div>
                     </div>
-                    {tr.fgc_reward_tx ? (
-                      <span className="px-3 py-1 rounded-full bg-green-500/20 border border-green-500/30 text-green-400 text-xs font-medium">
-                        Rewarded
-                      </span>
-                    ) : (
-                      <span className="px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-medium">
-                        Pending
-                      </span>
-                    )}
                   </div>
-
-                  {/* Data Links */}
-                  <div className="space-y-3">
-                    <div className="bg-slate-800/50 rounded-xl p-3 border border-slate-700/30">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-xs text-gray-400 font-medium">Knowledge Graph</p>
-                        <ExternalLink className="w-3 h-3 text-gray-500 group-hover:text-purple-400 transition-colors" />
-                      </div>
-                      <p className="text-xs text-purple-400 font-mono break-all">{tr.kg_hash.slice(0, 20)}...</p>
-                    </div>
-
-                    <div className="bg-slate-800/50 rounded-xl p-3 border border-slate-700/30">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-xs text-gray-400 font-medium">Metrics</p>
-                        <ExternalLink className="w-3 h-3 text-gray-500 group-hover:text-cyan-400 transition-colors" />
-                      </div>
-                      <p className="text-xs text-cyan-400 font-mono break-all">{tr.metrics_hash.slice(0, 20)}...</p>
-                    </div>
-
-                    {tr.fgc_reward_tx && (
-                      <div className="bg-green-500/10 rounded-xl p-3 border border-green-500/30">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-xs text-gray-400 font-medium">Reward Transaction</p>
-                          <ExternalLink className="w-3 h-3 text-green-400" />
-                        </div>
-                        <p className="text-xs text-green-400 font-mono break-all">{tr.fgc_reward_tx.slice(0, 20)}...</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                </a>
               ))}
             </div>
           )}
