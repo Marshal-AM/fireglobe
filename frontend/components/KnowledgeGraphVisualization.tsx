@@ -18,6 +18,7 @@ export default function KnowledgeGraphVisualization({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [graphData, setGraphData] = useState<KnowledgeGraphData | null>(null);
   const [selectedNode, setSelectedNode] = useState<any>(null);
+  const selectedNodeRef = useRef<any>(null); // Use ref to avoid re-running physics
   const animationRef = useRef<number | undefined>(undefined);
   const currentNodesRef = useRef<any[]>([]);
   const originalPositionsRef = useRef<{ x: number; y: number }[]>([]);
@@ -49,6 +50,11 @@ export default function KnowledgeGraphVisualization({
       setGraphData(processedData);
     }
   }, [conversationData]);
+
+  // Sync selectedNode to ref without triggering physics re-render
+  useEffect(() => {
+    selectedNodeRef.current = selectedNode;
+  }, [selectedNode]);
 
 
   // Physics simulation
@@ -88,7 +94,7 @@ export default function KnowledgeGraphVisualization({
         y: entity.y || paddingY + row * spaceY + randomOffsetY,
         vx: entity.vx || 0,
         vy: entity.vy || 0,
-        size: entity.size || 70 // Larger nodes for better visibility and easier clicking
+        size: entity.size || 100 // Bigger nodes for better visibility
       };
     });
 
@@ -96,10 +102,8 @@ export default function KnowledgeGraphVisualization({
     const stabilizationFrames = 150; // Initial settling period
     const links = graphData.relationships;
     
-    // Store original positions for floating animation in ref (only once)
-    if (originalPositionsRef.current.length === 0) {
-      originalPositionsRef.current = nodes.map(node => ({ x: node.x!, y: node.y! }));
-    }
+    // Reset original positions when graphData changes
+    originalPositionsRef.current = [];
     
     const simulate = () => {
       frameCount++;
@@ -117,7 +121,7 @@ export default function KnowledgeGraphVisualization({
           const dx = nodes[j].x! - nodes[i].x!;
           const dy = nodes[j].y! - nodes[i].y!;
           const distance = Math.sqrt(dx * dx + dy * dy) || 1;
-          const minDistance = (nodes[i].size! + nodes[j].size!) / 2 + 40;
+          const minDistance = (nodes[i].size! + nodes[j].size!) / 2 + 60;
           
           // Only apply force if too close
           if (distance < minDistance) {
@@ -139,7 +143,7 @@ export default function KnowledgeGraphVisualization({
           const dx = target.x! - source.x!;
           const dy = target.y! - source.y!;
           const distance = Math.sqrt(dx * dx + dy * dy) || 1;
-          const idealDistance = 250;
+          const idealDistance = 300;
           const force = (distance - idealDistance) * 0.005; // Very weak force
           
           source.vx! += (dx / distance) * force;
@@ -164,17 +168,17 @@ export default function KnowledgeGraphVisualization({
         // After stabilization: smooth floating animation
         const time = frameCount * 0.02; // Slow time progression
         
+        // Store final positions once after stabilization
+        if (frameCount === stabilizationFrames + 1) {
+          originalPositionsRef.current = nodes.map(node => ({ x: node.x!, y: node.y! }));
+        }
+        
         nodes.forEach((node, index) => {
-          // Update original positions from ref after settling (once)
-          if (frameCount === stabilizationFrames + 1) {
-            originalPositionsRef.current[index] = { x: node.x!, y: node.y! };
-          }
-          
           // Each node has unique floating pattern based on its index
-          const offsetX = Math.sin(time + index * 0.5) * 8; // Float left-right (8px range)
-          const offsetY = Math.cos(time + index * 0.7) * 6; // Float up-down (6px range)
+          const offsetX = Math.sin(time + index * 0.5) * 20; // Float left-right (8px range)
+          const offsetY = Math.cos(time + index * 0.7) * 15; // Float up-down (6px range)
           
-          // Apply smooth floating to original positions from ref
+          // Apply smooth floating to stored positions
           node.x = originalPositionsRef.current[index].x + offsetX;
           node.y = originalPositionsRef.current[index].y + offsetY;
         });
@@ -207,52 +211,131 @@ export default function KnowledgeGraphVisualization({
           ctx.stroke();
           
           ctx.setLineDash([]);
+          
+          // Draw link label if it exists
+          if (link.label) {
+            const midX = (source.x! + target.x!) / 2;
+            const midY = (source.y! + target.y!) / 2;
+            
+            // Calculate angle of the line
+            const dx = target.x! - source.x!;
+            const dy = target.y! - source.y!;
+            let angle = Math.atan2(dy, dx);
+            
+            // Keep text readable (not upside down)
+            if (angle > Math.PI / 2 || angle < -Math.PI / 2) {
+              angle = angle + Math.PI;
+            }
+            
+            // Set text style
+            ctx.save();
+            ctx.translate(midX, midY);
+            ctx.rotate(angle);
+            
+            // Draw background for better readability
+            ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            const textMetrics = ctx.measureText(link.label);
+            const padding = 12;
+            const bgWidth = textMetrics.width + padding * 2;
+            const bgHeight = 28;
+            
+            // Background box
+            ctx.fillStyle = 'rgba(26, 26, 26, 0.95)';
+            ctx.fillRect(-bgWidth/2, -bgHeight/2, bgWidth, bgHeight);
+            
+            // Border
+            ctx.strokeStyle = colors.link;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(-bgWidth/2, -bgHeight/2, bgWidth, bgHeight);
+            
+            // Text
+            ctx.fillStyle = '#FFD700';
+            ctx.fillText(link.label, 0, 0);
+            
+            ctx.restore();
+          }
         }
       });
 
       // Draw nodes
       nodes.forEach((node: any) => {
-        const isSelected = selectedNode?.id === node.id;
+        const isSelected = selectedNodeRef.current?.id === node.id;
         const nodeColor = colors[node.type as keyof typeof colors] || colors.accent;
+        const nodeSize = isSelected ? node.size! / 2 + 15 : node.size! / 2; // Make selected node bigger
         
-        // Outer glow for selected node only
+        // Debug: log when drawing selected node
+        if (isSelected && frameCount % 60 === 0) { // Log every 60 frames to avoid spam
+          console.log('🎨 Drawing selected node:', node.label);
+        }
+        
+        // Simple glow for selected node
         if (isSelected) {
-          ctx.shadowBlur = 25;
-          ctx.shadowColor = nodeColor;
+          ctx.shadowBlur = 30;
+          ctx.shadowColor = '#FFD700'; // Gold glow
         } else {
           ctx.shadowBlur = 0;
         }
 
-        // Node circle
-        ctx.fillStyle = nodeColor;
+        // Create radial gradient for node
+        const gradient = ctx.createRadialGradient(
+          node.x!, node.y!, 0, // Inner circle (center)
+          node.x!, node.y!, nodeSize // Outer circle
+        );
+        
+        // Define gradient colors based on node type (dark → light)
+        if (node.type === 'personality') {
+          gradient.addColorStop(0, '#FF69B4'); // Dark pink
+          gradient.addColorStop(0.5, '#FFB6C1'); // Mild pink
+          gradient.addColorStop(1, '#FFC0CB'); // Light pink
+        } else if (node.type === 'conversation') {
+          gradient.addColorStop(0, '#4682B4'); // Dark blue
+          gradient.addColorStop(0.5, '#87CEEB'); // Mild blue
+          gradient.addColorStop(1, '#B0E0E6'); // Light blue
+        } else if (node.type === 'timestamp' || node.type === 'balanceState') {
+          gradient.addColorStop(0, '#228B22'); // Dark green
+          gradient.addColorStop(0.5, '#98FB98'); // Mild green
+          gradient.addColorStop(1, '#90EE90'); // Light green
+        } else if (node.type === 'action' || node.type === 'agentAnalysis') {
+          gradient.addColorStop(0, '#9370DB'); // Dark plum
+          gradient.addColorStop(0.5, '#DDA0DD'); // Mild plum
+          gradient.addColorStop(1, '#E6C3E6'); // Light plum
+        } else if (node.type === 'transaction' || node.type === 'suggestedActions') {
+          gradient.addColorStop(0, '#DAA520'); // Dark gold
+          gradient.addColorStop(0.5, '#F0E68C'); // Mild khaki
+          gradient.addColorStop(1, '#FFFACD'); // Light yellow
+        } else {
+          // Default gradient
+          gradient.addColorStop(0, nodeColor);
+          gradient.addColorStop(0.5, nodeColor);
+          gradient.addColorStop(1, nodeColor);
+        }
+
+        // Node circle with gradient
+        ctx.fillStyle = gradient;
         ctx.beginPath();
-        ctx.arc(node.x!, node.y!, node.size! / 2, 0, Math.PI * 2);
+        ctx.arc(node.x!, node.y!, nodeSize, 0, Math.PI * 2);
         ctx.fill();
 
-        // Node border - black outline for all nodes
+        // Node border - thicker gold border for selected
         ctx.strokeStyle = isSelected ? '#FFD700' : '#000000';
-        ctx.lineWidth = isSelected ? 4 : 3;
+        ctx.lineWidth = isSelected ? 5 : 3;
         ctx.stroke();
 
         ctx.shadowBlur = 0;
 
         // Label with better positioning and larger font
         ctx.fillStyle = colors.text;
-        ctx.font = `${isSelected ? '26' : '20'}px system-ui, -apple-system, sans-serif`;
+        ctx.font = `${isSelected ? '32' : '24'}px system-ui, -apple-system, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         
-        const labelY = node.y! + node.size! / 2 + 42;
+        const labelY = node.y! + node.size! / 2 + 50;
         const labelX = node.x!;
         
-        // Add background for better readability
-        const textMetrics = ctx.measureText(node.label);
-        const textWidth = textMetrics.width;
-        const textHeight = 18;
-        
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.fillRect(labelX - textWidth/2 - 5, labelY - textHeight/2 - 3, textWidth + 10, textHeight + 6);
-        
+        // Just text, no background
         ctx.fillStyle = colors.text;
         ctx.fillText(node.label, labelX, labelY);
       });
@@ -265,7 +348,7 @@ export default function KnowledgeGraphVisualization({
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [graphData, selectedNode]);
+  }, [graphData]); // Remove selectedNode from dependencies to prevent restart on click
 
 
   // Handle mouse click
@@ -292,16 +375,19 @@ export default function KnowledgeGraphVisualization({
       const dy = scaledY - node.y!;
       const distance = Math.sqrt(dx * dx + dy * dy);
       // Larger click radius for easier selection
-      return distance < (node.size! / 2) + 10;
+      return distance < (node.size! / 2) + 15;
     });
 
     if (clickedNodes.length > 0) {
       // If multiple nodes overlap, pick the last one (drawn on top)
       const clickedNode = clickedNodes[clickedNodes.length - 1];
-      console.log('Node clicked:', clickedNode);
+      console.log('✅ Node clicked:', clickedNode.label, 'ID:', clickedNode.id);
       setSelectedNode(clickedNode);
+      selectedNodeRef.current = clickedNode; // Also update ref directly
     } else {
+      console.log('❌ Clicked empty area - deselecting');
       setSelectedNode(null);
+      selectedNodeRef.current = null; // Also update ref directly
     }
   };
 
@@ -321,15 +407,15 @@ export default function KnowledgeGraphVisualization({
       {/* Graph Statistics */}
       <div className="grid grid-cols-3 gap-4">
         <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-4 border border-white/10">
-          <p className="text-gray-400 text-sm mb-1">Entities</p>
+          <p className="text-white text-sm mb-1">Entities</p>
           <p className="text-white text-xl font-bold">{graphData.metadata.totalEntities}</p>
         </div>
         <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-4 border border-white/10">
-          <p className="text-gray-400 text-sm mb-1">Relationships</p>
+          <p className="text-white text-sm mb-1">Relationships</p>
           <p className="text-white text-xl font-bold">{graphData.metadata.totalRelationships}</p>
         </div>
         <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-4 border border-white/10">
-          <p className="text-gray-400 text-sm mb-1">Network</p>
+          <p className="text-white text-sm mb-1">Network</p>
           <p className="text-white text-sm font-mono">Base Sepolia</p>
         </div>
       </div>

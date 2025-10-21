@@ -5,10 +5,10 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowLeft, ExternalLink, Calendar, Activity, TrendingUp, Database, BarChart3 } from 'lucide-react';
 import { BackgroundBeams } from '@/components/ui/background-beams';
 import KnowledgeGraphVisualization from '@/components/KnowledgeGraphVisualization';
+import { AuroraText } from '@/components/ui/aurora-text';
 import { Sora } from 'next/font/google';
 import dynamic from 'next/dynamic';
 
-// Dynamically import the force graph to avoid SSR issues
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), { ssr: false });
 
 const sora = Sora({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
@@ -18,6 +18,7 @@ export default function TempTestDetails() {
   const router = useRouter();
   const kgUrl = searchParams.get('kg');
   const metricsUrl = searchParams.get('metrics');
+  const rewardTx = searchParams.get('reward_tx');
 
   const [kgData, setKgData] = useState<any>(null);
   const [metricsData, setMetricsData] = useState<any>(null);
@@ -28,7 +29,7 @@ export default function TempTestDetails() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hoveredNode, setHoveredNode] = useState<any>(null);
   const [selectedNode, setSelectedNode] = useState<any>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -539,17 +540,17 @@ export default function TempTestDetails() {
                       Knowledge Graph
                     </h2>
                   </div>
-                {kgUrl && (
-                  <a
-                    href={kgUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                      className="flex items-center gap-2 text-orange-400 hover:text-orange-300 transition-colors duration-200"
-                  >
-                      <ExternalLink className="w-4 h-4" />
-                      View Source
-                  </a>
-                )}
+                  
+                  {rewardTx && (
+                    <a
+                      href={`https://sepolia.etherscan.io/tx/${rewardTx}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-4 py-2 bg-black text-white font-semibold rounded-lg transition-all duration-200 hover:bg-gray-900 border border-white/20"
+                    >
+                      View Reward
+                    </a>
+                  )}
               </div>
 
                 <div className="space-y-4">
@@ -571,17 +572,6 @@ export default function TempTestDetails() {
                       Metrics
                     </h2>
                   </div>
-                {metricsUrl && (
-                  <a
-                    href={metricsUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                      className="flex items-center gap-2 text-orange-400 hover:text-orange-300 transition-colors duration-200"
-                  >
-                      <ExternalLink className="w-4 h-4" />
-                      View Source
-                  </a>
-                )}
                 </div>
 
                 <div className="space-y-4">
@@ -591,9 +581,13 @@ export default function TempTestDetails() {
                       <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-6 border border-white/10">
                         <h3 className="text-white font-semibold mb-4">Overall Performance</h3>
                         <div className="text-center">
-                          <div className="text-4xl font-bold text-orange-500 mb-2">
+                          <AuroraText 
+                            className="text-4xl font-bold mb-2"
+                            colors={["#FF4500", "#FF8C00", "#FFD700", "#FF6B35"]}
+                            speed={1.5}
+                          >
                             {metricsData.metrics.summary?.overall_score?.toFixed(1) || 'N/A'}
-                          </div>
+                          </AuroraText>
                           <p className="text-gray-400">Final Performance Index</p>
                         </div>
                       </div>
@@ -686,10 +680,11 @@ export default function TempTestDetails() {
                               <div key={index} className="p-4 bg-black/20 rounded-xl">
                                 <div className="flex items-center justify-between mb-3">
                                   <span className="text-white font-medium text-lg">{area.area}</span>
-                                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                    area.priority === 'CRITICAL' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                                    area.priority === 'HIGH' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
-                                    'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                                  <span className={`px-3 py-1 bg-black rounded-full text-sm font-bold ${
+                                    area.priority === 'CRITICAL' ? 'text-red-500' :
+                                    area.priority === 'HIGH' ? 'text-orange-500' :
+                                    area.priority === 'MEDIUM' ? 'text-yellow-500' :
+                                    'text-green-500'
                                   }`}>
                                     {area.priority}
                                   </span>

@@ -313,7 +313,7 @@ export default function UserDashboard() {
               {testRuns.map((tr, idx) => (
                 <a
                   key={tr.run_id}
-                  href={`/temp-test-details?kg=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.kg_hash}`)}&metrics=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.metrics_hash}`)}`}
+                  href={`/temp-test-details?kg=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.kg_hash}`)}&metrics=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.metrics_hash}`)}${tr.fgc_reward_tx ? `&reward_tx=${encodeURIComponent(tr.fgc_reward_tx)}` : ''}`}
                   className="cursor-target relative group block p-2 h-full w-full"
                 >
                   <div className="rounded-2xl h-full w-full p-6 overflow-hidden bg-black border border-transparent dark:border-white/[0.2] group-hover:border-orange-500 transition-all duration-500 ease-out transform group-hover:scale-105 group-hover:-translate-y-2 group-hover:shadow-2xl group-hover:shadow-orange-500/20">
