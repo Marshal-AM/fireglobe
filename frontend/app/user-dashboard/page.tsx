@@ -209,7 +209,7 @@ export default function UserDashboard() {
 
       <div className="max-w-7xl mx-auto relative z-10 flex-1">
         {/* Header Section */}
-        <div className="backdrop-blur-xl bg-white/5 rounded-3xl shadow-2xl p-8 mb-8 border border-white/10 hover:border-orange-500/50 transition-all duration-500">
+        <div className="backdrop-blur-xl bg-white/5 rounded-3xl shadow-2xl p-8 mb-8 border border-orange-500/50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-8">
               <div>
