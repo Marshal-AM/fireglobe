@@ -554,27 +554,10 @@ export default function TempTestDetails() {
 
                 <div className="space-y-4">
                   {kgData && (
-                    <>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-4 border border-white/10">
-                          <p className="text-gray-400 text-sm mb-1">Entities</p>
-                          <p className="text-white text-xl font-bold">
-                            {graphData.nodes.length}
-                          </p>
-                        </div>
-                        <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-4 border border-white/10">
-                          <p className="text-gray-400 text-sm mb-1">Connections</p>
-                          <p className="text-white text-xl font-bold">
-                            {graphData.links.length}
-                          </p>
-                        </div>
-            </div>
-
-                      <KnowledgeGraphVisualization 
-                        conversationData={kgData}
-                        className="h-96 w-full"
-                      />
-                    </>
+                    <KnowledgeGraphVisualization 
+                      conversationData={kgData}
+                      className="w-full"
+                    />
                   )}
                 </div>
               </div>

@@ -17,10 +17,10 @@ export default function KnowledgeGraphVisualization({
 }: KnowledgeGraphVisualizationProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [graphData, setGraphData] = useState<KnowledgeGraphData | null>(null);
-  const [hoveredNode, setHoveredNode] = useState<any>(null);
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const animationRef = useRef<number | undefined>(undefined);
   const currentNodesRef = useRef<any[]>([]);
+  const originalPositionsRef = useRef<{ x: number; y: number }[]>([]);
 
   // Light color palette
   const colors = {
@@ -93,8 +93,13 @@ export default function KnowledgeGraphVisualization({
     });
 
     let frameCount = 0;
-    const maxFrames = 200; // Stop after 200 frames (~3 seconds at 60fps)
+    const stabilizationFrames = 150; // Initial settling period
     const links = graphData.relationships;
+    
+    // Store original positions for floating animation in ref (only once)
+    if (originalPositionsRef.current.length === 0) {
+      originalPositionsRef.current = nodes.map(node => ({ x: node.x!, y: node.y! }));
+    }
     
     const simulate = () => {
       frameCount++;
@@ -102,21 +107,12 @@ export default function KnowledgeGraphVisualization({
       // Store current node positions for click detection
       currentNodesRef.current = nodes;
       
-      // Check if nodes have stabilized
-      let totalVelocity = 0;
-      nodes.forEach((node) => {
-        totalVelocity += Math.abs(node.vx!) + Math.abs(node.vy!);
-      });
-      
-      // Stop animation if stabilized or max frames reached
-      if (totalVelocity < 0.5 || frameCount > maxFrames) {
-        // Draw one final time and stop
-        drawGraph();
-        return;
-      }
+      const isStabilized = frameCount > stabilizationFrames;
 
-      // MUCH WEAKER repulsion to keep grid-like structure
-      for (let i = 0; i < nodes.length; i++) {
+      if (!isStabilized) {
+        // Initial physics simulation to settle nodes
+        // MUCH WEAKER repulsion to keep grid-like structure
+        for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const dx = nodes[j].x! - nodes[i].x!;
           const dy = nodes[j].y! - nodes[i].y!;
@@ -153,17 +149,36 @@ export default function KnowledgeGraphVisualization({
         }
       });
 
-      // Update positions with strong damping to stabilize quickly
-      nodes.forEach((node) => {
-        node.vx! *= 0.92; // Strong damping
-        node.vy! *= 0.92;
-        node.x! += node.vx!;
-        node.y! += node.vy!;
+        // Update positions with strong damping to stabilize quickly
+        nodes.forEach((node) => {
+          node.vx! *= 0.92; // Strong damping
+          node.vy! *= 0.92;
+          node.x! += node.vx!;
+          node.y! += node.vy!;
 
-        // Keep nodes in bounds with padding
-        node.x = Math.max(100, Math.min(width - 100, node.x!));
-        node.y = Math.max(100, Math.min(height - 100, node.y!));
-      });
+          // Keep nodes in bounds with padding
+          node.x = Math.max(100, Math.min(width - 100, node.x!));
+          node.y = Math.max(100, Math.min(height - 100, node.y!));
+        });
+      } else {
+        // After stabilization: smooth floating animation
+        const time = frameCount * 0.02; // Slow time progression
+        
+        nodes.forEach((node, index) => {
+          // Update original positions from ref after settling (once)
+          if (frameCount === stabilizationFrames + 1) {
+            originalPositionsRef.current[index] = { x: node.x!, y: node.y! };
+          }
+          
+          // Each node has unique floating pattern based on its index
+          const offsetX = Math.sin(time + index * 0.5) * 8; // Float left-right (8px range)
+          const offsetY = Math.cos(time + index * 0.7) * 6; // Float up-down (6px range)
+          
+          // Apply smooth floating to original positions from ref
+          node.x = originalPositionsRef.current[index].x + offsetX;
+          node.y = originalPositionsRef.current[index].y + offsetY;
+        });
+      }
 
       // Draw the graph
       drawGraph();
@@ -197,12 +212,11 @@ export default function KnowledgeGraphVisualization({
 
       // Draw nodes
       nodes.forEach((node: any) => {
-        const isHovered = hoveredNode?.id === node.id;
         const isSelected = selectedNode?.id === node.id;
         const nodeColor = colors[node.type as keyof typeof colors] || colors.accent;
         
-        // Outer glow for hovered or selected node
-        if (isHovered || isSelected) {
+        // Outer glow for selected node only
+        if (isSelected) {
           ctx.shadowBlur = 25;
           ctx.shadowColor = nodeColor;
         } else {
@@ -215,20 +229,20 @@ export default function KnowledgeGraphVisualization({
         ctx.arc(node.x!, node.y!, node.size! / 2, 0, Math.PI * 2);
         ctx.fill();
 
-        // Node border
-        ctx.strokeStyle = isSelected ? '#FFD700' : colors.text;
-        ctx.lineWidth = isSelected ? 4 : (isHovered ? 3 : 2);
+        // Node border - black outline for all nodes
+        ctx.strokeStyle = isSelected ? '#FFD700' : '#000000';
+        ctx.lineWidth = isSelected ? 4 : 3;
         ctx.stroke();
 
         ctx.shadowBlur = 0;
 
         // Label with better positioning and larger font
         ctx.fillStyle = colors.text;
-        ctx.font = `${isSelected ? '22' : '18'}px system-ui, -apple-system, sans-serif`;
+        ctx.font = `${isSelected ? '26' : '20'}px system-ui, -apple-system, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         
-        const labelY = node.y! + node.size! / 2 + 40;
+        const labelY = node.y! + node.size! / 2 + 42;
         const labelX = node.x!;
         
         // Add background for better readability
@@ -251,34 +265,8 @@ export default function KnowledgeGraphVisualization({
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [graphData, hoveredNode, selectedNode]);
+  }, [graphData, selectedNode]);
 
-  // Handle mouse hover
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas || !graphData) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    // Scale coordinates based on canvas size
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const scaledX = x * scaleX;
-    const scaledY = y * scaleY;
-
-    // Use current node positions from the physics simulation
-    const nodes = currentNodesRef.current;
-
-    const hoveredNode = nodes.find((node: any) => {
-      const dx = scaledX - node.x!;
-      const dy = scaledY - node.y!;
-      return Math.sqrt(dx * dx + dy * dy) < node.size! / 2;
-    });
-
-    setHoveredNode(hoveredNode || null);
-  };
 
   // Handle mouse click
   const handleMouseClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -355,8 +343,6 @@ export default function KnowledgeGraphVisualization({
               width={1600}
               height={900}
               className="w-full h-auto cursor-pointer"
-              onMouseMove={handleMouseMove}
-              onMouseLeave={() => setHoveredNode(null)}
               onClick={handleMouseClick}
             />
         </div>
@@ -411,24 +397,6 @@ export default function KnowledgeGraphVisualization({
           <p className="text-gray-400 text-sm mb-3">Type: {selectedNode.type}</p>
           <div className="space-y-2">
             {Object.entries(selectedNode.attributes).map(([key, value]) => (
-              <div key={key} className="flex justify-between text-sm">
-                <span className="text-gray-400 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
-                <span className="text-white">
-                  {Array.isArray(value) ? value.join(', ') : String(value)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Hovered Node Info */}
-      {hoveredNode && !selectedNode && (
-        <div className="mt-4 backdrop-blur-xl bg-white/5 rounded-xl p-4 border border-white/10">
-          <h3 className="text-white font-semibold mb-2">{hoveredNode.label}</h3>
-          <p className="text-gray-400 text-sm mb-3">Type: {hoveredNode.type}</p>
-          <div className="space-y-2">
-            {Object.entries(hoveredNode.attributes).map(([key, value]) => (
               <div key={key} className="flex justify-between text-sm">
                 <span className="text-gray-400 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
                 <span className="text-white">
