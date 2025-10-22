@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowLeft, ExternalLink, Calendar, Activity, TrendingUp, Database, BarChart3 } from 'lucide-react';
 import { BackgroundBeams } from '@/components/ui/background-beams';
@@ -13,7 +13,7 @@ const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), { ssr: false 
 
 const sora = Sora({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
-export default function TempTestDetails() {
+function TestDetailsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const kgUrl = searchParams.get('kg');
@@ -711,5 +711,13 @@ export default function TempTestDetails() {
           </div>
       </div>
     </div>
+  );
+}
+
+export default function TestDetails() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <TestDetailsContent />
+    </Suspense>
   );
 }

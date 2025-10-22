@@ -167,19 +167,6 @@ export default function UserDashboard() {
     );
   }
 
-  const dockItems = [
-    { 
-      icon: <Home size={18} color="white" />, 
-      label: 'Home', 
-      onClick: () => { setAccessToken(null); logout(); router.replace('/'); } 
-    },
-    { 
-      icon: <Archive size={18} color="white" />, 
-      label: 'Dashboard', 
-      onClick: () => router.push('/user-dashboard') 
-    },
-  ];
-
   return (
     <div className="min-h-screen bg-black py-8 px-4 flex relative">
       {/* Target Cursor */}
@@ -190,22 +177,6 @@ export default function UserDashboard() {
       
       {/* Background Beams */}
       <BackgroundBeams />
-      
-      {/* Left Dock */}
-      <div className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50">
-        <div className="flex flex-col gap-4">
-          {dockItems.map((item, index) => (
-            <button
-              key={index}
-              onClick={item.onClick}
-               className="w-16 h-16 bg-black/80 backdrop-blur-xl border border-white rounded-2xl flex items-center justify-center hover:bg-black/90 transition-all duration-200 hover:scale-110"
-              title={item.label}
-            >
-              {item.icon}
-            </button>
-          ))}
-        </div>
-      </div>
 
       <div className="max-w-7xl mx-auto relative z-10 flex-1">
         {/* Header Section */}
@@ -313,7 +284,7 @@ export default function UserDashboard() {
               {testRuns.map((tr, idx) => (
                 <a
                   key={tr.run_id}
-                  href={`/temp-test-details?kg=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.kg_hash}`)}&metrics=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.metrics_hash}`)}${tr.fgc_reward_tx ? `&reward_tx=${encodeURIComponent(tr.fgc_reward_tx)}` : ''}`}
+                  href={`/test-details?kg=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.kg_hash}`)}&metrics=${encodeURIComponent(`https://gateway.lighthouse.storage/ipfs/${tr.metrics_hash}`)}${tr.fgc_reward_tx ? `&reward_tx=${encodeURIComponent(tr.fgc_reward_tx)}` : ''}`}
                   className="cursor-target relative group block p-2 h-full w-full"
                 >
                   <div className="rounded-2xl h-full w-full p-6 overflow-hidden bg-black border border-transparent dark:border-white/[0.2] group-hover:border-orange-500 transition-all duration-500 ease-out transform group-hover:scale-105 group-hover:-translate-y-2 group-hover:shadow-2xl group-hover:shadow-orange-500/20">
