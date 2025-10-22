@@ -191,7 +191,7 @@ export default function UserDashboard() {
                 </div>
                 <div className="flex items-center gap-3 mt-2">
                   {user?.wallet?.address && (
-                    <span className="px-3 py-1 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 text-sm font-mono">
+                    <span className="px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/30 text-orange-300 text-sm font-mono">
                       {formatAddress(user.wallet.address)}
                     </span>
                   )}
@@ -210,7 +210,7 @@ export default function UserDashboard() {
                 <div className="flex items-center justify-center h-12">
                   {loading && (
                     <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-6 w-6 border-2 border-purple-500 border-t-transparent"></div>
+                      <div className="animate-spin rounded-full h-6 w-6 border-2 border-orange-500 border-t-transparent"></div>
                     </div>
                   )}
                   
@@ -329,6 +329,17 @@ export default function UserDashboard() {
                           speed={1.2}
                         >
                           {tr.metrics_hash.slice(0, 12)}...
+                        </AuroraText>
+                      </div>
+
+                      <div>
+                        <p className="text-zinc-400 text-sm mb-1">Reward Transaction:</p>
+                        <AuroraText 
+                          className="font-mono text-sm break-all"
+                          colors={["#FF4500", "#FF8C00", "#FFD700", "#FF6B35"]}
+                          speed={1.2}
+                        >
+                          {tr.fgc_reward_tx?.slice(0, 12)}...
                         </AuroraText>
                       </div>
                     </div>
