@@ -169,12 +169,6 @@ export default function UserDashboard() {
 
   return (
     <div className="min-h-screen bg-black py-8 px-4 flex relative">
-      {/* Target Cursor */}
-      <TargetCursor 
-        spinDuration={2}
-        hideDefaultCursor={true}
-      />
-      
       {/* Background Beams */}
       <BackgroundBeams />
 
@@ -186,7 +180,7 @@ export default function UserDashboard() {
               <div>
                 <div className={`${sora.className} text-3xl font-bold tracking-tight flex items-center transform -skew-x-12`}>
                   <span className="text-white">Welcome</span>
-                  <span className="mx-2"></span>
+                  <span className="mx-1"></span>
                   <AuroraText 
                     className="text-3xl font-bold tracking-tight"
                     colors={["#FF4500", "#FF8C00", "#FFD700", "#FF6B35"]}
@@ -209,7 +203,7 @@ export default function UserDashboard() {
               
             </div>
             
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-7">
               {/* Access Token Section */}
               <div className="text-center">
                 <p className="text-gray-400 text-sm">Access Token</p>
@@ -234,7 +228,7 @@ export default function UserDashboard() {
                       onClick={copyToClipboard}
                       className="text-white hover:text-gray-300 font-medium text-base transition-all duration-200 hover:scale-110"
                     >
-                      {copied ? "Copied!" : "Copy"}
+                      {copied ? "Copied!" : `${accessToken.slice(0, 3)}...${accessToken.slice(-4)}`}
                     </button>
                   )}
                 </div>
@@ -243,11 +237,11 @@ export default function UserDashboard() {
               {/* FGC Balance Section */}
               <div className="text-center">
                 <p className="text-gray-400 text-sm">FGC Balance</p>
-                <div className="h-12 flex items-center justify-center gap-3">
+                <div className="h-12 flex items-center justify-center">
                   <img 
                     src="/FGlogo.png" 
                     alt="FGC Token" 
-                    className="w-10 h-10 rounded-full"
+                    className="w-10 h-10 rounded-full object-contain"
                   />
                   <p className="text-white text-2xl font-bold font-mono">
                     {fgcBalance === null ? '—' : fgcBalance}
@@ -276,8 +270,24 @@ export default function UserDashboard() {
 
           {testRuns.length === 0 ? (
             <div className="text-center py-16">
-              <p className="text-gray-400 text-lg">No test runs yet</p>
-              <p className="text-gray-500 text-sm mt-2">Your test runs will appear here</p>
+              <p className="text-gray-400 text-lg mb-2">
+                To perform your test run, use your access token given below:
+              </p>
+              {accessToken && (
+                <div className="flex items-center justify-center gap-2 mt-2">
+                  <span className="inline-block bg-black border border-gray-700 text-white font-mono px-4 py-2 rounded-lg text-base select-all">
+                    {accessToken}
+                  </span>
+                  <button
+                    onClick={copyToClipboard}
+                    className="text-orange-400 hover:text-orange-200 font-medium text-sm transition-all duration-200 ml-2"
+                  >
+                    {copied ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+              )}
+
+              <p className="text-gray-500 text-sm mt-6">Your test runs will appear here</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -66,7 +66,6 @@ export default function Home() {
             <div className="mb-8">
               <div className={`${sora.className} text-7xl md:text-8xl font-extrabold tracking-tight flex items-center justify-center transform -skew-x-12`}>
                 <span className="text-white">Fire</span>
-                <span className="mx-2"></span>
                 <AuroraText 
                   className="text-7xl md:text-8xl font-extrabold tracking-tight"
                   colors={["#FF4500", "#FF8C00", "#FFD700", "#FF6B35"]}
