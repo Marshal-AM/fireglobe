@@ -47,7 +47,7 @@ export class AgentTester {
       accessToken: config.accessToken,
       dbServerUrl: config.dbServerUrl || 
                    process.env.DB_SERVER_URL || 
-                   "http://localhost:3001",
+                   "https://fireglobedb-739298578243.us-central1.run.app",
     };
 
     this.backendClient = new BackendClient({
