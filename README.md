@@ -2,6 +2,10 @@
 
 An On-Chain Agent Testing framework.
 
+<p align="center">
+<img width="591" height="585" alt="fireglobe-logo" src="https://github.com/user-attachments/assets/e1ac37de-92f7-49ab-be0e-87575f3c6410" />
+</p>
+
 ## How to use?
 
 For detailed demo instructions, visit [HOW-TO-USE.md](HOW-TO-USE.md)
@@ -36,6 +40,9 @@ fireGlobe operates through a structured pipeline that ensures thorough testing a
 
 ### Personality Generation and Transaction Quality Analysis Flow
 
+<img width="1293" height="784" alt="Personality Generation and Transaction Quality Analysis Flow" src="https://github.com/user-attachments/assets/0b438802-8cb7-40e8-923f-c8e70b0c30f5" />
+
+
 The process begins with your agent code integrating with the fireGlobe SDK Client. The AgentTester Instance (SDK) orchestrates the testing process by calling the `/rest/generate-personalities` endpoint of the fireGlobe Python Backend. This backend leverages the **ASI:One model to generate multiple distinct AI agents with unique personalities**.
 
 These generated agents hold realistic conversations and test your agent's ability to make correct transactions. Based on these interactions, your agent executes on-chain transactions on selected chains (ETH, Base, Arbitrum, etc.). The transaction hash is then sent to a **dedicated Blockscout Agent** for analysis.
@@ -43,6 +50,9 @@ These generated agents hold realistic conversations and test your agent's abilit
 The Blockscout Agent forwards the transaction hash to the **Blockscout MCP Server**, which responds with raw transaction data. This data is processed by the Blockscout Agent to generate detailed analytics derived from Blockscout data, providing comprehensive insights into transaction quality and performance.
 
 ### Data Processing and Storage + Reward Pipeline
+
+<img width="1288" height="828" alt="Data Processing and Storage + Reward Pipeline" src="https://github.com/user-attachments/assets/8ca8ddc9-c88f-4fbb-ab9f-d9abdd6d4121" />
+
 
 After all conversations are completed, the fireGlobe Python Backend **constructs a meTTa Knowledge Graph** through comprehensive conversation and transaction analysis. This analysis leverages detailed transaction information obtained from various sources, crucial for understanding agent performance in on-chain scenarios.
 
