@@ -1,173 +1,252 @@
-# CDP Agent Tester - Frontend
+# fireGlobe Frontend Dashboard
 
-A Next.js application for managing CDP Agent Tester access tokens with Privy authentication.
+A comprehensive Next.js dashboard for managing on-chain agent testing, viewing test results, and accessing detailed analytics with Privy authentication.
 
-## Features
+## 🌟 Features
 
-- 🔐 **Privy Authentication**: Login with email, wallet, or social accounts
-- 💼 **Embedded Wallets**: Automatic wallet creation for users
-- 🎟️ **Access Token Management**: Automatically generates and displays access tokens
-- 📋 **Copy to Clipboard**: Easy token copying for use in tests
-- 💾 **Local Storage**: Tokens saved locally for returning users
+### 🔐 **Authentication & User Management**
+- **Privy Authentication**: Login with email, wallet, or social accounts
+- **Embedded Wallets**: Automatic wallet creation for users
+- **User Profiles**: Secure user account management
 
-## Setup
+### 🎟️ **Access Token Management**
+- **Automatic Generation**: Access tokens created on first login
+- **Secure Storage**: Tokens saved locally for returning users
+- **Copy to Clipboard**: Easy token copying for use in tests
+- **Token History**: View all generated tokens
 
-### 1. Install Dependencies
+### 📊 **Test Run Dashboard**
+- **Run History**: View all your test runs in chronological order
+- **Real-time Status**: Live updates on running tests
+- **Quick Overview**: Summary cards showing key metrics
+- **Search & Filter**: Find specific test runs easily
 
-```bash
-cd /Users/sam/fireglobe/frontend
-npm install
-```
+### 💰 **FGC Balance & Rewards**
+- **Balance Display**: View your current FGC token balance
+- **Reward History**: Track earned rewards from test runs
+- **Transaction History**: Complete record of FGC transactions
+- **Reward Notifications**: Alerts when new rewards are earned
 
-### 2. Configure Environment Variables
+### 📈 **Detailed Analytics & Metrics**
+- **Performance Metrics**: Comprehensive agent performance analysis
+- **Conversation Analytics**: Detailed conversation breakdowns
+- **Transaction Analysis**: Blockchain transaction insights
+- **Personality Testing**: Results from AI-generated test personalities
+- **Export Options**: Download reports in various formats
 
-Create `.env.local` file:
+### 🔍 **Advanced Features**
+- **IPFS Integration**: Direct access to stored test data
+- **Knowledge Graph**: Visual representation of test relationships
+- **Comparative Analysis**: Compare different test runs
+- **Trend Analysis**: Performance trends over time
 
-```bash
-cp env.local.example .env.local
-```
 
-Update with your credentials:
+## 🚀 How It Works
 
-```env
-NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id_here
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
+### Dashboard User Flow
 
-### 3. Get Privy App ID
+1. **Authentication**: User logs in with Privy (email/wallet/social)
+2. **Dashboard Access**: User gains access to comprehensive testing dashboard
+3. **Token Management**: Access token automatically generated and displayed
+4. **Test Execution**: User can initiate new tests or view existing results
+5. **Analytics Review**: Detailed metrics and performance analysis available
+6. **Reward Tracking**: FGC balance and reward history displayed
 
-1. Go to [Privy Dashboard](https://dashboard.privy.io/)
-2. Create a new app or use existing one
-3. Enable login methods:
-   - ✅ Email
-   - ✅ Wallet
-   - ✅ Google
-   - ✅ Twitter
-   - ✅ Discord  
-   - ✅ GitHub
-4. Enable **Embedded Wallets** in settings:
-   - Set to "Create on login"
-   - Disable password requirement
-5. Copy your App ID
+### Test Run Management
 
-### 4. Set Up Supabase
+1. **Run Initiation**: Users can start new agent tests from the dashboard
+2. **Real-time Monitoring**: Live updates on test progress and status
+3. **Result Storage**: All test data automatically stored in IPFS and Supabase
+4. **Analytics Generation**: Comprehensive metrics calculated and displayed
+5. **Reward Distribution**: FGC tokens automatically minted for completed tests
 
-1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
-2. Create a new project
-3. Run the SQL schema from `/Users/sam/fireglobe/SDK/db-server/schema.sql` in the SQL Editor
-4. Get your Project URL and anon key from Settings → API
-5. Add them to `.env.local`
+### Data Integration
 
-### 5. Start the Frontend
+**Backend Integration**:
+- Fetches test run data from fireGlobe backend services
+- Retrieves Knowledge Graph data for detailed analysis
+- Accesses metrics from Metrics Generator service
 
-```bash
-npm run dev
-```
+**Blockchain Integration**:
+- Displays FGC token balance from user's wallet
+- Shows transaction history and reward details
+- Integrates with Base Sepolia for test execution
 
-Visit http://localhost:3000
-
-## How It Works
-
-### User Flow
-
-1. **Login**: User clicks "Login with Privy"
-2. **Authentication**: Privy handles authentication (email/wallet/social)
-3. **Token Generation**: Frontend calls db-server to create user and get access token
-4. **Display**: Access token is displayed and saved to localStorage
-5. **Use**: User copies token for use in CDP Agent Tester
-
-### DB Integration
-
-When a user logs in:
-- Frontend sends user email/wallet to internal API route (`/api/auth`)
-- API route checks if user exists in Supabase
-- If new user, Supabase auto-generates access token
-- Token is returned and displayed to user
-- Token is cached in localStorage for returning users
+**Storage Integration**:
+- IPFS data retrieval for test results and conversations
+- Supabase integration for user data and test run metadata
+- Local storage for user preferences and cached data
 
 ### Tech Stack
 
-- **Next.js 15** - React framework
+- **Next.js 15** - React framework with App Router
 - **Privy** - Authentication & embedded wallets
-- **Tailwind CSS** - Styling
-- **TypeScript** - Type safety
+- **Tailwind CSS** - Utility-first CSS framework
+- **TypeScript** - Type safety and better DX
+- **Supabase** - Database and real-time subscriptions
+- **IPFS** - Decentralized storage for test data
+- **Viem** - Ethereum library for blockchain interactions
+- **Chart.js/Recharts** - Data visualization and analytics
+- **React Query** - Data fetching and caching
+- **Framer Motion** - Smooth animations and transitions
 
-## File Structure
+## 📁 File Structure
 
 ```
 frontend/
 ├── app/
 │   ├── api/
-│   │   └── auth/
-│   │       └── route.ts    # API route for user auth
-│   ├── layout.tsx          # Root layout with Privy provider
-│   ├── page.tsx            # Main page (login/dashboard)
-│   ├── providers.tsx       # Privy configuration
-│   └── globals.css         # Global styles
+│   │   ├── auth/
+│   │   │   └── route.ts           # User authentication API
+│   │   ├── fgc-balance/
+│   │   │   └── route.ts           # FGC balance API
+│   │   └── test-runs/
+│   │       └── route.ts           # Test runs management API
+│   ├── dashboard/                 # Main dashboard pages
+│   │   ├── page.tsx              # Dashboard overview
+│   │   ├── test-runs/
+│   │   │   └── page.tsx          # Test runs list
+│   │   └── analytics/
+│   │       └── page.tsx          # Detailed analytics
+│   ├── test-details/
+│   │   └── [id]/
+│   │       └── page.tsx          # Individual test run details
+│   ├── user-dashboard/
+│   │   └── page.tsx              # User profile and settings
+│   ├── layout.tsx                # Root layout with providers
+│   ├── page.tsx                  # Landing/login page
+│   ├── providers.tsx             # App providers configuration
+│   └── globals.css               # Global styles
+├── components/
+│   ├── ui/                       # Reusable UI components
+│   │   ├── button.tsx
+│   │   ├── card.tsx
+│   │   ├── chart.tsx
+│   │   └── ...
+│   ├── dashboard/                # Dashboard-specific components
+│   │   ├── TestRunCard.tsx
+│   │   ├── MetricsChart.tsx
+│   │   ├── FGCBalance.tsx
+│   │   └── ...
+│   ├── analytics/                # Analytics components
+│   │   ├── PerformanceMetrics.tsx
+│   │   ├── ConversationViewer.tsx
+│   │   └── TransactionAnalysis.tsx
+│   └── ...
 ├── lib/
-│   └── supabase.ts         # Supabase client
-├── public/                 # Static assets
-├── .env.local              # Environment variables (create this)
-└── package.json            # Dependencies
+│   ├── supabase.ts               # Supabase client
+│   ├── utils.ts                  # Utility functions
+│   ├── api.ts                    # API client functions
+│   └── types.ts                  # TypeScript type definitions
+├── public/                       # Static assets
+├── .env.local                    # Environment variables
+└── package.json                  # Dependencies
 ```
 
-## Configuration
+## 🎯 Dashboard Features
 
-### Privy Settings
+### Test Run Management
+- **Run History**: Complete list of all test runs with status indicators
+- **Detailed Views**: Individual test run pages with comprehensive data
 
-Update `app/providers.tsx` to customize:
+### Analytics & Metrics
+- **Performance Dashboard**: Visual charts showing agent performance over time
+- **Conversation Analytics**: Detailed breakdown of test conversations
+- **Transaction Analysis**: Blockchain transaction insights and gas usage
+- **Personality Testing**: Results from AI-generated test personalities
+- **Comparative Analysis**: Side-by-side comparison of different test runs
 
-```typescript
-loginMethods: ['email', 'wallet', 'google', 'twitter', 'discord', 'github'],
-appearance: {
-  theme: 'light',
-  accentColor: '#676FFF',
-  logo: 'https://your-logo-url.com/logo.png',
-},
-embeddedWallets: {
-  createOnLogin: 'users-without-wallets',
-},
+### FGC Token Management
+- **Balance Display**: Real-time FGC token balance from user's wallet
+- **Transaction Details**: Detailed view of all FGC transactions
+
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+Create `.env.local` with the following variables:
+
+```env
+# Privy Authentication
+NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id_here
+
+# Supabase Database
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# FireGlobe Backend Services
+NEXT_PUBLIC_BACKEND_URL=https://backend-739298578243.us-central1.run.app
+NEXT_PUBLIC_DB_SERVER_URL=https://fireglobedb-739298578243.us-central1.run.app
+NEXT_PUBLIC_METRICS_URL=https://metricsgen-739298578243.us-central1.run.app
+
+# Blockchain Configuration
+NEXT_PUBLIC_CHAIN_ID=84532
+NEXT_PUBLIC_RPC_URL=your_base_sepolia_rpc_url
 ```
 
-### Supported Chains
+## 🔌 API Endpoints
 
-Currently configured for:
-- Base Sepolia (testnet) - default
-- Base (mainnet)
+### Authentication
+- `POST /api/auth` - User authentication and token generation
+- `GET /api/auth/me` - Get current user information
 
-## Development
+### Test Runs
+- `GET /api/test-runs` - Fetch user's test runs
+- `POST /api/test-runs` - Create new test run
+- `GET /api/test-runs/[id]` - Get specific test run details
+- `DELETE /api/test-runs/[id]` - Delete test run
 
+### FGC Balance
+- `GET /api/fgc-balance` - Get user's FGC token balance
+- `GET /api/fgc-balance/history` - Get FGC transaction history
+
+### Analytics
+- `GET /api/analytics/overview` - Get performance overview
+- `GET /api/analytics/metrics/[runId]` - Get detailed metrics for test run
+- `GET /api/analytics/export/[runId]` - Export test run data
+
+## 💻 Development
+
+### Quick Start
 ```bash
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.local.example .env.local
+# Edit .env.local with your credentials
+
 # Run development server
 npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
-
-# Lint code
-npm run lint
 ```
 
-## Troubleshooting
+### Available Scripts
+```bash
+# Development
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint
+npm run type-check   # Run TypeScript type checking
 
-### "NEXT_PUBLIC_PRIVY_APP_ID is not set"
-- Make sure you created `.env.local` file
-- Add your Privy App ID to the file
-- Restart the dev server
+# Testing
+npm run test         # Run unit tests
+npm run test:watch   # Run tests in watch mode
+npm run test:coverage # Run tests with coverage
 
-### "Failed to create user"
-- Check that Supabase URL and anon key are correct in `.env.local`
-- Verify the SQL schema was applied in Supabase
-- Check browser console and Network tab for detailed errors
+# Code Quality
+npm run format       # Format code with Prettier
+npm run lint:fix     # Fix ESLint issues automatically
+```
 
-### Token not showing after login
-- Check browser console for errors
-- Verify Supabase is accessible
-- Check network tab for failed API requests to `/api/auth`
+### Development Guidelines
+- Use TypeScript for all new files
+- Follow the existing component structure
+- Write tests for new components and utilities
+- Use Tailwind CSS for styling
+- Follow the established naming conventions
+- Update documentation for new features
 
 ## License
 
