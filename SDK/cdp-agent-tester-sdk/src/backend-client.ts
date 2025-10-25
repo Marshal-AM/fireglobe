@@ -230,7 +230,7 @@ export class BackendClient {
       const response = await axios.post(
         `${metricsUrl}/metrics/generate`,
         {
-          conversation_id: conversationId || null,
+          conversation_id: null,
         },
         {
           timeout: 60000, // 60 second timeout for metrics generation
