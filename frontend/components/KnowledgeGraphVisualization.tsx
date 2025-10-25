@@ -162,11 +162,11 @@ export default function KnowledgeGraphVisualization({
         if (entity.type === 'conversation') {
           x = baseX; y = baseY; // Center of group
         } else if (entity.type === 'personality') {
-          x = baseX - 120; y = baseY - 100; // Top-left of conversation
+          x = baseX - 140; y = baseY - 120; // Top-left of conversation
         } else if (entity.type === 'timestamp') {
-          x = baseX + 120; y = baseY - 100; // Top-right of conversation
+          x = baseX + 140; y = baseY - 120; // Top-right of conversation
         } else if (entity.type === 'transaction') {
-          x = baseX; y = baseY + 140; // Below conversation
+          x = baseX; y = baseY + 190; // Below conversation
         } else {
           x = baseX + (index % 2 === 0 ? -80 : 80); 
           y = baseY + 60;

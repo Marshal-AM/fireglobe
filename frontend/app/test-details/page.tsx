@@ -541,16 +541,27 @@ function TestDetailsContent() {
                     </h2>
                   </div>
                   
-                  {rewardTx && (
+                  <div className="flex gap-3">
+                    {rewardTx && (
+                      <a
+                        href={`https://sepolia.etherscan.io/tx/${rewardTx}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-4 py-2 bg-black text-white font-semibold rounded-lg transition-all duration-200 hover:bg-gray-900 border border-white/20"
+                      >
+                        View Reward
+                      </a>
+                    )}
+                    
                     <a
-                      href={`https://sepolia.etherscan.io/tx/${rewardTx}`}
+                      href={kgUrl || "#"}
                       target="_blank"
                       rel="noreferrer"
                       className="px-4 py-2 bg-black text-white font-semibold rounded-lg transition-all duration-200 hover:bg-gray-900 border border-white/20"
                     >
-                      View Reward
+                      View Raw KG
                     </a>
-                  )}
+                  </div>
               </div>
 
                 <div className="space-y-4">

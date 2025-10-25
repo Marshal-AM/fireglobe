@@ -81,7 +81,7 @@ export const createKnowledgeGraphFromComprehensiveTestRun = (testRunData: any): 
     entities.push({
       id: convId,
       type: 'conversation',
-      label: `Conversation ${convIndex + 1}`,
+      label: conversation.personality_name || 'Unknown Personality',
       attributes: {
         id: conversation.conversation_id || 'unknown',
         personality: conversation.personality_name || 'Unknown',
