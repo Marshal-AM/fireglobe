@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, ExternalLink, Calendar, Activity, TrendingUp, Database, BarChart3 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Calendar, Activity, TrendingUp, Database, BarChart3, Code } from 'lucide-react';
 import { BackgroundBeams } from '@/components/ui/background-beams';
 import KnowledgeGraphVisualization from '@/components/KnowledgeGraphVisualization';
 import { AuroraText } from '@/components/ui/aurora-text';
@@ -30,6 +30,7 @@ function TestDetailsContent() {
   const [hoveredNode, setHoveredNode] = useState<any>(null);
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const animationRef = useRef<number | undefined>(undefined);
+  const [showRawJson, setShowRawJson] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -541,16 +542,25 @@ function TestDetailsContent() {
                     </h2>
                   </div>
                   
-                  {rewardTx && (
-                    <a
-                      href={`https://sepolia.etherscan.io/tx/${rewardTx}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="px-4 py-2 bg-black text-white font-semibold rounded-lg transition-all duration-200 hover:bg-gray-900 border border-white/20"
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setShowRawJson(true)}
+                      className="px-4 py-2 bg-purple-600/20 text-purple-300 font-semibold rounded-lg transition-all duration-200 hover:bg-purple-600/30 border border-purple-500/30 flex items-center gap-2"
                     >
-                      View Reward
-                    </a>
-                  )}
+                      <Code className="w-4 h-4" />
+                      View Source
+                    </button>
+                    {rewardTx && (
+                      <a
+                        href={`https://sepolia.etherscan.io/tx/${rewardTx}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-4 py-2 bg-black text-white font-semibold rounded-lg transition-all duration-200 hover:bg-gray-900 border border-white/20"
+                      >
+                        View Reward
+                      </a>
+                    )}
+                  </div>
               </div>
 
                 <div className="space-y-4">
@@ -710,6 +720,95 @@ function TestDetailsContent() {
           )}
           </div>
       </div>
+
+      {/* Raw JSON Modal */}
+      {showRawJson && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-4xl max-h-[90vh] backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-white/10">
+              <h3 className={`${sora.className} text-2xl font-bold text-white transform -skew-x-12`}>
+                Raw JSON Source
+              </h3>
+              <button
+                onClick={() => setShowRawJson(false)}
+                className="text-white/60 hover:text-white transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-auto max-h-[calc(90vh-120px)]">
+              <div className="space-y-4">
+                {/* Knowledge Graph JSON */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-orange-400 font-semibold">Knowledge Graph Data</h4>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(JSON.stringify(kgData, null, 2));
+                      }}
+                      className="px-3 py-1 bg-orange-500/20 text-orange-300 text-sm rounded-lg hover:bg-orange-500/30 transition-all"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <pre className="bg-black/50 rounded-xl p-4 overflow-auto text-xs text-green-400 font-mono border border-white/10">
+                    {JSON.stringify(kgData, null, 2)}
+                  </pre>
+                </div>
+
+                {/* Metrics JSON */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-blue-400 font-semibold">Metrics Data</h4>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(JSON.stringify(metricsData, null, 2));
+                      }}
+                      className="px-3 py-1 bg-blue-500/20 text-blue-300 text-sm rounded-lg hover:bg-blue-500/30 transition-all"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <pre className="bg-black/50 rounded-xl p-4 overflow-auto text-xs text-cyan-400 font-mono border border-white/10">
+                    {JSON.stringify(metricsData, null, 2)}
+                  </pre>
+                </div>
+
+                {/* URLs */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="text-purple-400 font-semibold mb-2">KG Source URL</h4>
+                    <a 
+                      href={kgUrl || '#'}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-purple-300 hover:text-purple-200 break-all"
+                    >
+                      {kgUrl}
+                    </a>
+                  </div>
+                  <div>
+                    <h4 className="text-pink-400 font-semibold mb-2">Metrics Source URL</h4>
+                    <a 
+                      href={metricsUrl || '#'}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-pink-300 hover:text-pink-200 break-all"
+                    >
+                      {metricsUrl}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

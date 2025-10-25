@@ -11,6 +11,12 @@ interface KnowledgeGraphVisualizationProps {
   className?: string;
 }
 
+interface RawTransactionData {
+  timestamp: string;
+  raw_data: any;
+  success: boolean;
+}
+
 export default function KnowledgeGraphVisualization({ 
   conversationData, 
   className = "" 
@@ -22,6 +28,8 @@ export default function KnowledgeGraphVisualization({
   const animationRef = useRef<number | undefined>(undefined);
   const currentNodesRef = useRef<any[]>([]);
   const originalPositionsRef = useRef<{ x: number; y: number }[]>([]);
+  const [showRawTxModal, setShowRawTxModal] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   // Light color palette - All unique colors with gradient style
   const colors = {
@@ -543,10 +551,20 @@ export default function KnowledgeGraphVisualization({
       {/* Selected Node Info */}
       {selectedNode && (
         <div className="mt-4 backdrop-blur-xl bg-white/5 rounded-xl p-4 border border-white/10">
-          <h3 className="text-white font-semibold mb-2 flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[selectedNode.type as keyof typeof colors] }} />
-            {selectedNode.label}
-          </h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-white font-semibold flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[selectedNode.type as keyof typeof colors] }} />
+              {selectedNode.label}
+            </h3>
+            {selectedNode.type === 'transaction' && conversationData?.entry?.transactions && (
+              <button
+                onClick={() => setShowRawTxModal(true)}
+                className="px-3 py-1.5 bg-black text-white text-xs font-semibold rounded-lg transition-all duration-200 hover:bg-gray-900 border border-white/20"
+              >
+                Raw tx data
+              </button>
+            )}
+          </div>
           <p className="text-gray-400 text-sm mb-3">Type: {selectedNode.type}</p>
           <div className="space-y-2">
             {Object.entries(selectedNode.attributes).map(([key, value]) => (
@@ -557,6 +575,160 @@ export default function KnowledgeGraphVisualization({
                 </span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Raw Transaction Data Modal */}
+      {showRawTxModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-5xl max-h-[90vh] backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-white/10">
+              <h3 className="text-2xl font-bold text-white transform -skew-x-12">
+                Raw Transaction Data
+              </h3>
+              <button
+                onClick={() => setShowRawTxModal(false)}
+                className="text-white/60 hover:text-white transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-auto max-h-[calc(90vh-120px)]">
+              <div className="space-y-6">
+                {conversationData?.entry?.transactions && conversationData.entry.transactions.length > 0 ? (
+                  conversationData.entry.transactions.map((tx: any, index: number) => (
+                    <div key={index} className="space-y-4">
+                      {/* Transaction Header */}
+                      <div className="flex items-center justify-between bg-white/5 border border-white/20 rounded-xl p-4">
+                        <div>
+                          <h4 className="text-orange-400 font-bold text-lg">Transaction #{index + 1}</h4>
+                          <p className="text-gray-400 text-xs mt-1">
+                            {tx.timestamp ? new Date(tx.timestamp).toLocaleString() : 'N/A'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={`px-3 py-1 rounded-lg text-sm font-bold ${
+                            tx.success ? 'bg-black text-green-400 border border-white/20' : 'bg-black text-red-400 border border-white/20'
+                          }`}>
+                            {tx.success ? 'SUCCESS' : 'FAILED'}
+                          </span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(JSON.stringify(tx.raw_data, null, 2));
+                              setCopiedIndex(index);
+                              setTimeout(() => setCopiedIndex(null), 2000);
+                            }}
+                            className="px-3 py-1 bg-black text-white text-sm rounded-lg hover:bg-gray-900 transition-all border border-white/20"
+                          >
+                            {copiedIndex === index ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Raw Data Display */}
+                      {tx.raw_data && (
+                        <div className="bg-black/50 rounded-xl p-4 border border-white/10">
+                          <pre className="text-xs text-green-400 font-mono overflow-auto max-h-[500px]">
+                            {JSON.stringify(tx.raw_data, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+
+                      {/* Transaction Summary Cards */}
+                      {tx.raw_data?.data && (
+                        <div className="grid grid-cols-2 gap-4">
+                          {/* Basic Info */}
+                          <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                            <h5 className="text-orange-400 font-semibold mb-3">Basic Information</h5>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-400">Block:</span>
+                                <span className="text-white font-mono">{tx.raw_data.data.block_number}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-400">Position:</span>
+                                <span className="text-white">{tx.raw_data.data.position}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-400">Confirmations:</span>
+                                <span className="text-white">{tx.raw_data.data.confirmations}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-400">Type:</span>
+                                <span className="text-white">{tx.raw_data.data.type}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Gas Info */}
+                          <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                            <h5 className="text-orange-400 font-semibold mb-3">Gas Details</h5>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-400">Gas Used:</span>
+                                <span className="text-white font-mono">{tx.raw_data.data.gas_used}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-400">Gas Limit:</span>
+                                <span className="text-white font-mono">{tx.raw_data.data.gas_limit}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-400">Gas Price:</span>
+                                <span className="text-white font-mono">{tx.raw_data.data.gas_price}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-400">Total Fee:</span>
+                                <span className="text-white font-mono">{tx.raw_data.data.fee?.value}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Method Call */}
+                          {tx.raw_data.data.decoded_input && (
+                            <div className="col-span-2 bg-white/5 rounded-xl p-4 border border-white/10">
+                              <h5 className="text-orange-400 font-semibold mb-3">Decoded Method Call</h5>
+                              <div className="space-y-3">
+                                <div>
+                                  <span className="text-gray-400 text-sm">Method:</span>
+                                  <p className="text-white font-mono text-sm mt-1">{tx.raw_data.data.decoded_input.method_call}</p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-400 text-sm">Parameters:</span>
+                                  <div className="mt-2 space-y-2">
+                                    {tx.raw_data.data.decoded_input.parameters?.map((param: any, pIndex: number) => (
+                                      <div key={pIndex} className="bg-black/30 rounded p-2">
+                                        <div className="flex justify-between text-xs">
+                                          <span className="text-blue-400">{param.name} ({param.type}):</span>
+                                          <span className="text-white font-mono">{param.value}</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {index < conversationData.entry.transactions.length - 1 && (
+                        <div className="border-t border-white/10 my-6"></div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-gray-400">No raw transaction data available</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
