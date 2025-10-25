@@ -23,21 +23,21 @@ export default function KnowledgeGraphVisualization({
   const currentNodesRef = useRef<any[]>([]);
   const originalPositionsRef = useRef<{ x: number; y: number }[]>([]);
 
-  // Light color palette
+  // Light color palette - All unique colors with gradient style
   const colors = {
     personality: '#FFB6C1', // Light Pink
     conversation: '#87CEEB', // Sky Blue
-    timestamp: '#98FB98', // Light Green
+    timestamp: '#98FB98', // Pale Green
     action: '#DDA0DD', // Plum
     transaction: '#F0E68C', // Khaki
-    amount: '#FFB6C1', // Light Pink
-    gasMetrics: '#87CEEB', // Sky Blue
-    balanceState: '#98FB98', // Light Green
-    confirmations: '#90EE90', // Light Green
-    agentAnalysis: '#DDA0DD', // Plum
-    suggestedActions: '#F0E68C', // Khaki
-    userRequest: '#FFB6C1', // Light Pink
-    targetContract: '#87CEEB', // Sky Blue
+    amount: '#FFD700', // Gold
+    gasMetrics: '#FF4500', // Orange Red
+    balanceState: '#7FFFD4', // Aquamarine
+    confirmations: '#32CD32', // Lime Green (darker)
+    agentAnalysis: '#BA55D3', // Medium Orchid
+    suggestedActions: '#FFA07A', // Light Salmon
+    userRequest: '#FF69B4', // Deep Pink
+    targetContract: '#4169E1', // Royal Blue
     link: '#DDA0DD', // Plum
     background: '#1a1a1a', // Dark background
     text: '#ffffff', // White
@@ -294,18 +294,50 @@ export default function KnowledgeGraphVisualization({
           gradient.addColorStop(0, '#4682B4'); // Dark blue
           gradient.addColorStop(0.5, '#87CEEB'); // Mild blue
           gradient.addColorStop(1, '#B0E0E6'); // Light blue
-        } else if (node.type === 'timestamp' || node.type === 'balanceState') {
-          gradient.addColorStop(0, '#228B22'); // Dark green
-          gradient.addColorStop(0.5, '#98FB98'); // Mild green
-          gradient.addColorStop(1, '#90EE90'); // Light green
-        } else if (node.type === 'action' || node.type === 'agentAnalysis') {
+        } else if (node.type === 'timestamp') {
+          gradient.addColorStop(0, '#3CB371'); // Medium sea green
+          gradient.addColorStop(0.5, '#98FB98'); // Pale green
+          gradient.addColorStop(1, '#B9FBC0'); // Very pale green
+        } else if (node.type === 'balanceState') {
+          gradient.addColorStop(0, '#20B2AA'); // Dark aquamarine
+          gradient.addColorStop(0.5, '#7FFFD4'); // Mild aquamarine
+          gradient.addColorStop(1, '#AFEEEE'); // Light aquamarine
+        } else if (node.type === 'action') {
           gradient.addColorStop(0, '#9370DB'); // Dark plum
           gradient.addColorStop(0.5, '#DDA0DD'); // Mild plum
           gradient.addColorStop(1, '#E6C3E6'); // Light plum
-        } else if (node.type === 'transaction' || node.type === 'suggestedActions') {
+        } else if (node.type === 'agentAnalysis') {
+          gradient.addColorStop(0, '#8B008B'); // Dark orchid
+          gradient.addColorStop(0.5, '#BA55D3'); // Medium orchid
+          gradient.addColorStop(1, '#DA70D6'); // Light orchid
+        } else if (node.type === 'transaction') {
           gradient.addColorStop(0, '#DAA520'); // Dark gold
           gradient.addColorStop(0.5, '#F0E68C'); // Mild khaki
           gradient.addColorStop(1, '#FFFACD'); // Light yellow
+        } else if (node.type === 'suggestedActions') {
+          gradient.addColorStop(0, '#E9967A'); // Dark salmon
+          gradient.addColorStop(0.5, '#FFA07A'); // Light salmon
+          gradient.addColorStop(1, '#FFB6A3'); // Lighter salmon
+        } else if (node.type === 'amount') {
+          gradient.addColorStop(0, '#DAA520'); // Dark goldenrod
+          gradient.addColorStop(0.5, '#FFD700'); // Gold
+          gradient.addColorStop(1, '#FFEC8B'); // Light gold
+        } else if (node.type === 'gasMetrics') {
+          gradient.addColorStop(0, '#CC3300'); // Dark orange red
+          gradient.addColorStop(0.5, '#FF4500'); // Orange red
+          gradient.addColorStop(1, '#FF6347'); // Tomato red
+        } else if (node.type === 'confirmations') {
+          gradient.addColorStop(0, '#228B22'); // Forest green (dark)
+          gradient.addColorStop(0.5, '#32CD32'); // Lime green (medium)
+          gradient.addColorStop(1, '#7FFF00'); // Chartreuse (bright)
+        } else if (node.type === 'userRequest') {
+          gradient.addColorStop(0, '#C71585'); // Dark magenta
+          gradient.addColorStop(0.5, '#FF69B4'); // Deep pink
+          gradient.addColorStop(1, '#FF9ACB'); // Light deep pink
+        } else if (node.type === 'targetContract') {
+          gradient.addColorStop(0, '#1E3A8A'); // Dark royal blue
+          gradient.addColorStop(0.5, '#4169E1'); // Royal blue
+          gradient.addColorStop(1, '#6495ED'); // Cornflower blue
         } else {
           // Default gradient
           gradient.addColorStop(0, nodeColor);
@@ -381,11 +413,11 @@ export default function KnowledgeGraphVisualization({
     if (clickedNodes.length > 0) {
       // If multiple nodes overlap, pick the last one (drawn on top)
       const clickedNode = clickedNodes[clickedNodes.length - 1];
-      console.log('✅ Node clicked:', clickedNode.label, 'ID:', clickedNode.id);
+      console.log(' Node clicked:', clickedNode.label, 'ID:', clickedNode.id);
       setSelectedNode(clickedNode);
       selectedNodeRef.current = clickedNode; // Also update ref directly
     } else {
-      console.log('❌ Clicked empty area - deselecting');
+      console.log(' Clicked empty area - deselecting');
       setSelectedNode(null);
       selectedNodeRef.current = null; // Also update ref directly
     }
@@ -436,39 +468,74 @@ export default function KnowledgeGraphVisualization({
         {/* Legend - Outside graph container */}
         <div className="backdrop-blur-xl bg-white/5 rounded-xl border border-white/10 p-4">
           <h4 className="text-white font-medium mb-3 text-sm">Legend</h4>
-          <div className="flex flex-wrap gap-4">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.personality }} />
-          <span className="text-sm text-gray-400">Personality</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.conversation }} />
-          <span className="text-sm text-gray-400">Conversation</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.transaction }} />
-          <span className="text-sm text-gray-400">Transaction</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.agentAnalysis }} />
-          <span className="text-sm text-gray-400">Analysis</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.userRequest }} />
-          <span className="text-sm text-gray-400">User Request</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="text-sm text-gray-400">
-            <span className="inline-block w-4 h-0.5 bg-purple-400 mr-2"></span>
-            Completed
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="text-sm text-gray-400">
-            <span className="inline-block w-4 h-0.5 border-dashed border-pink-400 mr-2"></span>
-            Blocked/Failed
-          </div>
-        </div>
+          <div className="grid grid-cols-3 gap-x-6 gap-y-3">
+            {/* Node Types */}
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.personality }} />
+              <span className="text-sm text-gray-300">Personality</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.conversation }} />
+              <span className="text-sm text-gray-300">Conversation</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.timestamp }} />
+              <span className="text-sm text-gray-300">Timestamp</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.action }} />
+              <span className="text-sm text-gray-300">Action</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.transaction }} />
+              <span className="text-sm text-gray-300">Transaction</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.amount }} />
+              <span className="text-sm text-gray-300">Amount</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.gasMetrics }} />
+              <span className="text-sm text-gray-300">Gas Metrics</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.balanceState }} />
+              <span className="text-sm text-gray-300">Balance State</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.confirmations }} />
+              <span className="text-sm text-gray-300">Confirmations</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.agentAnalysis }} />
+              <span className="text-sm text-gray-300">Agent Analysis</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.suggestedActions }} />
+              <span className="text-sm text-gray-300">Suggested Actions</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.userRequest }} />
+              <span className="text-sm text-gray-300">User Request</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.targetContract }} />
+              <span className="text-sm text-gray-300">Target Contract</span>
+            </div>
+            
+            {/* Relationship Lines */}
+            <div className="flex items-center gap-2">
+              <div className="text-sm text-gray-300">
+                <span className="inline-block w-8 h-0.5 bg-purple-400 mr-2"></span>
+                Completed
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="text-sm text-gray-300 flex items-center">
+                <span className="inline-block w-8 h-0.5 border-t-2 border-dashed border-purple-400 mr-2"></span>
+                Blocked/Failed
+              </div>
+            </div>
           </div>
         </div>
       </div>
