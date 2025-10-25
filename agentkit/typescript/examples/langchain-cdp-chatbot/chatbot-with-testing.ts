@@ -20,7 +20,7 @@ import * as dotenv from "dotenv";
 import * as readline from "readline";
 
 // Import the testing SDK
-import { AgentTester, CDPAgentKitAdapter } from "fireglobe-sdk-client";
+import { AgentTester, LangChainAdapter } from "fireglobe-sdk-client";
 
 dotenv.config();
 
@@ -281,7 +281,7 @@ async function runTestMode(agent: any, config: any) {
   console.log("\n🧪 Starting Automated Testing Mode...\n");
 
   // Create the adapter to wrap our agent
-  const adapter = new CDPAgentKitAdapter({
+  const adapter = new LangChainAdapter({
     agent,
     config,
     metadata: {
@@ -307,13 +307,12 @@ async function runTestMode(agent: any, config: any) {
       - Read blockchain data and transaction history
     `,
     accessToken: process.env.ACCESS_TOKEN!, // REQUIRED: User access token for test result storage
-    numPersonalities: 1, // Generate number of targeted test personalities
-    maxMessagesPerConversation: 2,
+    numPersonalities: 2, // Generate number of targeted test personalities
+    maxMessagesPerConversation: 5,
     // Note: 10-second delay between exchanges is automatically applied to avoid rate limits
     saveConversations: true,
     conversationOutputPath: "./test-results",
-    realTimeLogging: true,
-    dbServerUrl: process.env.DB_SERVER_URL, // Optional: defaults to http://localhost:3001
+    realTimeLogging: true
   });
 
   // Add event listeners for real-time updates

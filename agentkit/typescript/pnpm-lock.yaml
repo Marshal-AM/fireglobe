@@ -269,8 +269,8 @@ importers:
         specifier: ^16.4.5
         version: 16.4.7
       fireglobe-sdk-client:
-        specifier: ^1.6.2
-        version: 1.6.2(@langchain/core@0.3.30(openai@4.89.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2)))(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+        specifier: ^1.6.4
+        version: 1.6.4(@langchain/core@0.3.30(openai@4.89.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2)))(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       zod:
         specifier: ^3.22.4
         version: 3.24.2
@@ -3698,8 +3698,8 @@ packages:
     resolution: {integrity: sha512-78/PXT1wlLLDgTzDs7sjq9hzz0vXD+zn+7wypEe4fXQxCmdmqfGsEPQxmiCSQI3ajFV91bVSsvNtrJRiW6nGng==}
     engines: {node: '>=10'}
 
-  fireglobe-sdk-client@1.6.2:
-    resolution: {integrity: sha512-cdPDn4eCwz6zU0I+k89ztqT+nI6XgGjQiV5dhKsPyWRZLTnZjEE4QGZeKITsaB5lL6aHNSI/nV5NR4A01x6e+w==}
+  fireglobe-sdk-client@1.6.4:
+    resolution: {integrity: sha512-Ys2aaiDBM8zzXa1AErRf5BRs6do+3SoFFjHFm3AL394MDYsbhgNgjmEp6naZQGLyXitLdnmxBkC3yFXqHJmoiw==}
     peerDependencies:
       '@langchain/core': '>=0.1.0'
     peerDependenciesMeta:
@@ -11468,7 +11468,7 @@ snapshots:
       locate-path: 6.0.0
       path-exists: 4.0.0
 
-  fireglobe-sdk-client@1.6.2(@langchain/core@0.3.30(openai@4.89.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2)))(bufferutil@4.0.9)(utf-8-validate@5.0.10):
+  fireglobe-sdk-client@1.6.4(@langchain/core@0.3.30(openai@4.89.1(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2)))(bufferutil@4.0.9)(utf-8-validate@5.0.10):
     dependencies:
       axios: 1.12.2
       uuid: 9.0.1
