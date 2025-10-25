@@ -37,10 +37,28 @@ export default function HowToUse() {
               1
             </div>
             <div className="flex-1">
-              <h3 className="text-xl font-semibold text-white mb-2">Sign up and get your access token</h3>
-              <p className="text-gray-400 mb-1">
-                Create your account and copy your access token from the dashboard
+              <h3 className="text-xl font-semibold text-white mb-2">Clone our GitHub repository</h3>
+              <p className="text-gray-400 mb-4">
+                Get the fireGlobe source code and navigate to the project directory
               </p>
+              <div className="bg-black/80 rounded-xl p-4 border border-gray-600/50">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Terminal className="w-4 h-4 text-orange-400" />
+                    <span className="text-sm text-gray-400 font-medium">Terminal</span>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard('git clone https://github.com/Marshal-AM/fireglobe\ncd fireglobe')}
+                    className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-white/10"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </div>
+                <code className="text-green-400 text-sm font-mono">
+                  git clone https://github.com/Marshal-AM/fireglobe<br />
+                  cd fireglobe
+                </code>
+              </div>
             </div>
           </div>
         </div>
@@ -54,7 +72,7 @@ export default function HowToUse() {
             <div className="flex-1">
               <h3 className="text-xl font-semibold text-white mb-2">Navigate to the AgentKit example</h3>
               <p className="text-gray-400 mb-4">
-                Clone and install dependencies for our example agent
+                Install dependencies for our example agent
               </p>
               <div className="bg-black/80 rounded-xl p-4 border border-gray-600/50">
                 <div className="flex items-center justify-between mb-3">
@@ -84,6 +102,21 @@ export default function HowToUse() {
               3
             </div>
             <div className="flex-1">
+              <h3 className="text-xl font-semibold text-white mb-2">Sign up and get your access token</h3>
+              <p className="text-gray-400 mb-1">
+                Create your account and copy your access token from the dashboard
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Step 4 */}
+        <div className="bg-black/50 rounded-2xl p-6 border border-orange-500/30 hover:border-orange-500/50 transition-all duration-300">
+          <div className="flex items-start gap-4">
+            <div className="bg-orange-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-lg shadow-lg shadow-orange-500/25">
+              4
+            </div>
+            <div className="flex-1">
               <h3 className="text-xl font-semibold text-white mb-2">Configure environment variables</h3>
               <p className="text-gray-400 mb-4">
                 Set up your API keys and access token in the .env file
@@ -101,12 +134,8 @@ CDP_API_KEY_ID=your_cdp_api_key_id
 CDP_API_KEY_SECRET=your_cdp_api_key_secret
 CDP_WALLET_SECRET=your_cdp_wallet_secret
 
-# FireGlobe Access Token (from step 1)
-ACCESS_TOKEN=your_access_token_from_fireglobe
-
-# Optional: Network configuration
-NETWORK_ID=base-sepolia
-RPC_URL=your_rpc_url_here`)}
+# FireGlobe Access Token (from step 3)
+ACCESS_TOKEN=your_access_token_from_fireglobe`)}
                     className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-white/10"
                   >
                     <Copy className="w-4 h-4" />
@@ -119,23 +148,19 @@ CDP_API_KEY_ID=your_cdp_api_key_id
 CDP_API_KEY_SECRET=your_cdp_api_key_secret
 CDP_WALLET_SECRET=your_cdp_wallet_secret
 
-# FireGlobe Access Token (from step 1)
-ACCESS_TOKEN=your_access_token_from_fireglobe
-
-# Optional: Network configuration
-NETWORK_ID=base-sepolia
-RPC_URL=your_rpc_url_here`}
+# FireGlobe Access Token (from step 3)
+ACCESS_TOKEN=your_access_token_from_fireglobe`}
                 </pre>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Step 4 */}
+        {/* Step 5 */}
         <div className="bg-black/50 rounded-2xl p-6 border border-orange-500/30 hover:border-orange-500/50 transition-all duration-300">
           <div className="flex items-start gap-4">
             <div className="bg-orange-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-lg shadow-lg shadow-orange-500/25">
-              4
+              5
             </div>
             <div className="flex-1">
               <h3 className="text-xl font-semibold text-white mb-2">Run the agent script</h3>
@@ -168,11 +193,11 @@ RPC_URL=your_rpc_url_here`}
           </div>
         </div>
 
-        {/* Step 5 */}
+        {/* Step 6 */}
         <div className="bg-black/50 rounded-2xl p-6 border border-orange-500/30 hover:border-orange-500/50 transition-all duration-300">
           <div className="flex items-start gap-4">
             <div className="bg-orange-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-lg shadow-lg shadow-orange-500/25">
-              5
+              6
             </div>
             <div className="flex-1">
               <h3 className="text-xl font-semibold text-white mb-2">View your results</h3>
@@ -209,21 +234,6 @@ RPC_URL=your_rpc_url_here`}
               1
             </div>
             <div className="flex-1">
-              <h3 className="text-xl font-semibold text-white mb-2">Sign up and get your access token</h3>
-              <p className="text-gray-400 mb-1">
-                Create your account and copy your access token from the dashboard
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Step 2 */}
-        <div className="bg-black/50 rounded-2xl p-6 border border-orange-500/30 hover:border-orange-500/50 transition-all duration-300">
-          <div className="flex items-start gap-4">
-            <div className="bg-orange-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-lg shadow-lg shadow-orange-500/25">
-              2
-            </div>
-            <div className="flex-1">
               <h3 className="text-xl font-semibold text-white mb-2">Install the fireGlobe SDK</h3>
               <p className="text-gray-400 mb-4">
                 Add the fireGlobe SDK to your project
@@ -249,11 +259,11 @@ RPC_URL=your_rpc_url_here`}
           </div>
         </div>
 
-        {/* Step 3 */}
+        {/* Step 2 */}
         <div className="bg-black/50 rounded-2xl p-6 border border-orange-500/30 hover:border-orange-500/50 transition-all duration-300">
           <div className="flex items-start gap-4">
             <div className="bg-orange-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-lg shadow-lg shadow-orange-500/25">
-              3
+              2
             </div>
             <div className="flex-1">
               <h3 className="text-xl font-semibold text-white mb-2">Import required components</h3>
@@ -281,11 +291,11 @@ RPC_URL=your_rpc_url_here`}
           </div>
         </div>
 
-        {/* Step 4 */}
+        {/* Step 3 */}
         <div className="bg-black/50 rounded-2xl p-6 border border-orange-500/30 hover:border-orange-500/50 transition-all duration-300">
           <div className="flex items-start gap-4">
             <div className="bg-orange-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-lg shadow-lg shadow-orange-500/25">
-              4
+              3
             </div>
             <div className="flex-1">
               <h3 className="text-xl font-semibold text-white mb-2">Wrap your agent with the adapter</h3>
@@ -300,13 +310,13 @@ RPC_URL=your_rpc_url_here`}
                   </div>
                   <button
                     onClick={() => copyToClipboard(`const adapter = new LangChainAdapter({
-  agent,
-  config,
+  agent: yourAgentKitAgent,
+  config: yourAgentConfig,
   metadata: {
-    name: "CDP AgentKit Test Agent",
-    description: "A DeFi agent built with CDP AgentKit that can perform various onchain operations",
-    version: "1.0.0",
-  },
+    name: "Your Agent Name",
+    description: "Description of your agent's capabilities",
+    version: "1.0.0"
+  }
 });`)}
                     className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-white/10"
                   >
@@ -315,13 +325,13 @@ RPC_URL=your_rpc_url_here`}
                 </div>
                 <pre className="text-gray-300 text-sm font-mono">
 {`const adapter = new LangChainAdapter({
-  agent,
-  config,
+  agent: yourAgentKitAgent,
+  config: yourAgentConfig,
   metadata: {
-    name: "CDP AgentKit Test Agent",
-    description: "A DeFi agent built with CDP AgentKit that can perform various onchain operations",
-    version: "1.0.0",
-  },
+    name: "Your Agent Name",
+    description: "Description of your agent's capabilities",
+    version: "1.0.0"
+  }
 });`}
                 </pre>
               </div>
@@ -329,11 +339,11 @@ RPC_URL=your_rpc_url_here`}
           </div>
         </div>
 
-        {/* Step 5 */}
+        {/* Step 4 */}
         <div className="bg-black/50 rounded-2xl p-6 border border-orange-500/30 hover:border-orange-500/50 transition-all duration-300">
           <div className="flex items-start gap-4">
             <div className="bg-orange-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-lg shadow-lg shadow-orange-500/25">
-              5
+              4
             </div>
             <div className="flex-1">
               <h3 className="text-xl font-semibold text-white mb-2">Configure and run the tester</h3>
@@ -348,11 +358,11 @@ RPC_URL=your_rpc_url_here`}
                   </div>
                   <button
                     onClick={() => copyToClipboard(`const tester = new AgentTester({
-  agentDescription: "Your agent description here",
-  agentCapabilities: "List your agent's capabilities here",
-  accessToken: process.env.ACCESS_TOKEN!, // REQUIRED: User access token for test result storage
-  numPersonalities: 2, // Generate number of targeted test personalities
-  maxMessagesPerConversation: 1,
+  agentDescription: "Your agent description",
+  agentCapabilities: "List of what your agent can do",
+  accessToken: process.env.ACCESS_TOKEN!, // Required
+  numPersonalities: 5, // Number of test personalities
+  maxMessagesPerConversation: 5,
   saveConversations: true,
   conversationOutputPath: "./test-results",
   realTimeLogging: true
@@ -360,12 +370,28 @@ RPC_URL=your_rpc_url_here`}
 
 // Add event listeners for real-time updates
 tester.on((event) => {
-  console.log(event);
+  switch (event.type) {
+    case "test_completed":
+      console.log(\`\\n🎉 Testing Complete!\`);
+      console.log(\`\\n📊 Overall Score: \${event.results.overallScore}/100\`);
+      console.log(\`\\n📈 Summary:\`);
+      console.log(\`   Total Conversations: \${event.results.summary.totalConversations}\`);
+      console.log(\`   Successful: \${event.results.summary.successfulConversations}\`);
+      console.log(\`   Failed: \${event.results.summary.failedConversations}\`);
+      console.log(\`\\n💪 Top Strengths:\`);
+      event.results.summary.topStrengths.forEach((s) => console.log(\`   - \${s}\`));
+      console.log(\`\\n⚠️  Top Weaknesses:\`);
+      event.results.summary.topWeaknesses.forEach((w) => console.log(\`   - \${w}\`));
+      break;
+    case "error":
+      console.error(\`\\n❌ Error: \${event.error}\`);
+      if (event.context) console.error(\`   Context: \${event.context}\`);
+      break;
+  }
 });
 
 // Run tests
-const results = await tester.runTests(adapter);
-console.log(\`Overall Score: \${results.overallScore}/100\`);`)}
+const results = await tester.runTests(adapter);`)}
                     className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-white/10"
                   >
                     <Copy className="w-4 h-4" />
@@ -373,11 +399,11 @@ console.log(\`Overall Score: \${results.overallScore}/100\`);`)}
                 </div>
                 <pre className="text-gray-300 text-sm font-mono">
 {`const tester = new AgentTester({
-  agentDescription: "Your agent description here",
-  agentCapabilities: "List your agent's capabilities here",
-  accessToken: process.env.ACCESS_TOKEN!, // REQUIRED: User access token for test result storage
-  numPersonalities: 2, // Generate number of targeted test personalities
-  maxMessagesPerConversation: 1,
+  agentDescription: "Your agent description",
+  agentCapabilities: "List of what your agent can do",
+  accessToken: process.env.ACCESS_TOKEN!, // Required
+  numPersonalities: 5, // Number of test personalities
+  maxMessagesPerConversation: 5,
   saveConversations: true,
   conversationOutputPath: "./test-results",
   realTimeLogging: true
@@ -385,23 +411,39 @@ console.log(\`Overall Score: \${results.overallScore}/100\`);`)}
 
 // Add event listeners for real-time updates
 tester.on((event) => {
-  console.log(event);
+  switch (event.type) {
+    case "test_completed":
+      console.log(\`\\n🎉 Testing Complete!\`);
+      console.log(\`\\n📊 Overall Score: \${event.results.overallScore}/100\`);
+      console.log(\`\\n📈 Summary:\`);
+      console.log(\`   Total Conversations: \${event.results.summary.totalConversations}\`);
+      console.log(\`   Successful: \${event.results.summary.successfulConversations}\`);
+      console.log(\`   Failed: \${event.results.summary.failedConversations}\`);
+      console.log(\`\\n💪 Top Strengths:\`);
+      event.results.summary.topStrengths.forEach((s) => console.log(\`   - \${s}\`));
+      console.log(\`\\n⚠️  Top Weaknesses:\`);
+      event.results.summary.topWeaknesses.forEach((w) => console.log(\`   - \${w}\`));
+      break;
+    case "error":
+      console.error(\`\\n❌ Error: \${event.error}\`);
+      if (event.context) console.error(\`   Context: \${event.context}\`);
+      break;
+  }
 });
 
 // Run tests
-const results = await tester.runTests(adapter);
-console.log(\`Overall Score: \${results.overallScore}/100\`);`}
+const results = await tester.runTests(adapter);`}
                 </pre>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Step 6 */}
+        {/* Step 5 */}
         <div className="bg-black/50 rounded-2xl p-6 border border-orange-500/30 hover:border-orange-500/50 transition-all duration-300">
           <div className="flex items-start gap-4">
             <div className="bg-orange-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-lg shadow-lg shadow-orange-500/25">
-              6
+              5
             </div>
             <div className="flex-1">
               <h3 className="text-xl font-semibold text-white mb-2">View results in the dashboard</h3>

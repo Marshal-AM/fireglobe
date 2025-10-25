@@ -1,65 +1,7 @@
 # fireGlobe Database Server
 
-A comprehensive Node.js server that manages test run data storage, IPFS uploads, and FGC token rewards for the fireGlobe testing platform.
+A comprehensive Node.js server that manages test run data storage, Lighthouse IPFS uploads, and FGC token rewards for the fireGlobe testing platform.
 
-## 🌟 Features
-
-- 🗄️ **Supabase Integration**: Stores user data and test run metadata
-- 📦 **Lighthouse IPFS**: Uploads Knowledge Graphs and Metrics to decentralized storage
-- 🔐 **Access Token Authentication**: Validates users via access tokens
-- 📊 **Test Run Tracking**: Links users to their test results
-- 💰 **FGC Token Rewards**: Automatically mints FGC tokens for completed test runs
-- 🔗 **Data Linking**: Connects test results to user accounts and IPFS storage
-- 📈 **Analytics Storage**: Stores comprehensive performance metrics and conversation data
-
-## API Endpoints
-
-### Health Check
-```bash
-GET /health
-```
-
-
-### Upload Knowledge Graph
-```bash
-POST /upload-kg
-Content-Type: application/json
-
-{
-  "access_token": "your-access-token",
-  "conversation_id": "optional-conversation-id"
-}
-```
-
-Response includes `kg_hash` needed for next step.
-
-### Upload Metrics (Complete Test Run)
-```bash
-POST /upload-metrics
-Content-Type: application/json
-
-{
-  "access_token": "your-access-token",
-  "kg_hash": "hash-from-upload-kg-response"
-}
-```
-
-### Upload Complete (Combined)
-```bash
-POST /upload-complete
-Content-Type: application/json
-
-{
-  "access_token": "your-access-token"
-}
-```
-
-Uploads both KG and Metrics in one call.
-
-### Get User Test Runs
-```bash
-GET /user/:access_token/test-runs
-```
 
 ## 🔄 Complete Data Flow & FGC Rewards Process
 
