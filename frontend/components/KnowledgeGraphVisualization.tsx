@@ -30,6 +30,10 @@ export default function KnowledgeGraphVisualization({
   const originalPositionsRef = useRef<{ x: number; y: number }[]>([]);
   const [showRawTxModal, setShowRawTxModal] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [showConversationModal, setShowConversationModal] = useState(false);
+  const [copiedConversation, setCopiedConversation] = useState(false);
+  const [showAnalysisModal, setShowAnalysisModal] = useState(false);
+  const [copiedAnalysis, setCopiedAnalysis] = useState(false);
 
   // Light color palette - All unique colors with gradient style
   const colors = {
@@ -480,7 +484,7 @@ export default function KnowledgeGraphVisualization({
             {/* Node Types */}
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.personality }} />
-              <span className="text-sm text-gray-300">Personality</span>
+              <span className="text-sm text-gray-300">DeFi Efficiency Tester</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.conversation }} />
@@ -562,6 +566,22 @@ export default function KnowledgeGraphVisualization({
                 className="px-3 py-1.5 bg-black text-white text-xs font-semibold rounded-lg transition-all duration-200 hover:bg-gray-900 border border-white/20"
               >
                 Raw tx data
+              </button>
+            )}
+            {selectedNode.type === 'conversation' && conversationData?.entry?.messages && (
+              <button
+                onClick={() => setShowConversationModal(true)}
+                className="px-3 py-1.5 bg-black text-white text-xs font-semibold rounded-lg transition-all duration-200 hover:bg-gray-900 border border-white/20"
+              >
+                View Conversation
+              </button>
+            )}
+            {selectedNode.type === 'agentAnalysis' && conversationData?.entry?.transactions && (
+              <button
+                onClick={() => setShowAnalysisModal(true)}
+                className="px-3 py-1.5 bg-black text-white text-xs font-semibold rounded-lg transition-all duration-200 hover:bg-gray-900 border border-white/20"
+              >
+                View Analysis
               </button>
             )}
           </div>
@@ -725,6 +745,184 @@ export default function KnowledgeGraphVisualization({
                 ) : (
                   <div className="text-center py-12">
                     <p className="text-gray-400">No raw transaction data available</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Conversation Modal */}
+      {showConversationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-5xl max-h-[90vh] backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-white/10">
+              <h3 className="text-2xl font-bold text-white transform -skew-x-12">
+                Conversation History
+              </h3>
+              <button
+                onClick={() => setShowConversationModal(false)}
+                className="text-white/60 hover:text-white transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-auto max-h-[calc(90vh-120px)]">
+              <div className="space-y-6">
+                {conversationData?.entry?.messages && conversationData.entry.messages.length > 0 ? (
+                  <>
+                    {/* Conversation Header */}
+                    <div className="flex items-center justify-between bg-white/5 border border-white/20 rounded-xl p-4">
+                      <div>
+                        <h4 className="text-blue-400 font-bold text-lg">
+                          Conversation ID: {conversationData.entry.conversation_id?.substring(0, 8)}...
+                        </h4>
+                        <p className="text-gray-400 text-xs mt-1">
+                          {conversationData.entry.messages.length} messages
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="px-3 py-1 rounded-lg text-sm font-bold bg-black text-blue-400 border border-white/20">
+                          ACTIVE
+                        </span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(JSON.stringify(conversationData.entry.messages, null, 2));
+                            setCopiedConversation(true);
+                            setTimeout(() => setCopiedConversation(false), 2000);
+                          }}
+                          className="px-3 py-1 bg-black text-white text-sm rounded-lg hover:bg-gray-900 transition-all border border-white/20"
+                        >
+                          {copiedConversation ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Messages Display */}
+                    <div className="space-y-4">
+                      {conversationData.entry.messages.map((message: any, index: number) => (
+                        <div 
+                          key={index}
+                          className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div className={`max-w-[80%] ${
+                            message.role === 'user' 
+                              ? 'bg-white/10 border-orange-400/40' 
+                              : 'bg-white/5 border-blue-400/40'
+                          } backdrop-blur-xl rounded-2xl p-4 border`}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className={`text-xs font-bold transform -skew-x-12 ${
+                                message.role === 'user' ? 'text-orange-400' : 'text-blue-400'
+                              }`}>
+                                {message.role === 'user' ? 'User' : 'Agent'}
+                              </span>
+                              <span className="text-xs text-gray-400">
+                                {new Date(message.timestamp).toLocaleTimeString('en-US', { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit',
+                                  second: '2-digit'
+                                })}
+                              </span>
+                            </div>
+                            <p className="text-white text-sm leading-relaxed">
+                              {message.content}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-gray-400">No conversation data available</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Analysis Modal */}
+      {showAnalysisModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-5xl max-h-[90vh] backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-white/10">
+              <h3 className="text-2xl font-bold text-white transform -skew-x-12">
+                Agent Analysis
+              </h3>
+              <button
+                onClick={() => setShowAnalysisModal(false)}
+                className="text-white/60 hover:text-white transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-auto max-h-[calc(90vh-120px)]">
+              <div className="space-y-6">
+                {conversationData?.entry?.transactions && conversationData.entry.transactions.length > 0 ? (
+                  <>
+                    {/* Analysis Header */}
+                    <div className="flex items-center justify-between bg-white/5 border border-white/20 rounded-xl p-4">
+                      <div>
+                        <h4 className="text-purple-400 font-bold text-lg">Transaction Analysis Report</h4>
+                        <p className="text-gray-400 text-xs mt-1">
+                          {conversationData.entry.transactions.length} transaction(s) analyzed
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="px-3 py-1 rounded-lg text-sm font-bold bg-black text-purple-400 border border-white/20">
+                          COMPLETE
+                        </span>
+                        <button
+                          onClick={() => {
+                            const analysisText = conversationData.entry.transactions.map((tx: any) => 
+                              tx.analysis || 'No analysis available'
+                            ).join('\n\n');
+                            navigator.clipboard.writeText(analysisText);
+                            setCopiedAnalysis(true);
+                            setTimeout(() => setCopiedAnalysis(false), 2000);
+                          }}
+                          className="px-3 py-1 bg-black text-white text-sm rounded-lg hover:bg-gray-900 transition-all border border-white/20"
+                        >
+                          {copiedAnalysis ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Analysis Display */}
+                    <div className="space-y-4">
+                      {conversationData.entry.transactions.map((tx: any, index: number) => (
+                        <div key={index} className="bg-white/5 border-purple-400/40 backdrop-blur-xl rounded-2xl p-5 border">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-sm font-bold transform -skew-x-12 text-purple-400">
+                              Analysis
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              Transaction #{index + 1}
+                            </span>
+                          </div>
+                          <div className="text-white text-sm leading-relaxed whitespace-pre-wrap">
+                            {tx.analysis || 'No analysis data available for this transaction.'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-gray-400">No analysis data available</p>
                   </div>
                 )}
               </div>
