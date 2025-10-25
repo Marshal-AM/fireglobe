@@ -23,8 +23,12 @@ export interface KnowledgeGraphData {
   entities: KnowledgeGraphEntity[];
   relationships: KnowledgeGraphRelationship[];
   metadata: {
-    conversationId: string;
-    personalityName: string;
+    conversationId?: string; // Legacy field
+    personalityName?: string; // Legacy field
+    testRunId?: string; // New field for comprehensive test runs
+    totalConversations?: number; // New field for comprehensive test runs
+    totalTransactions?: number; // New field for comprehensive test runs
+    personalities?: string[]; // New field for comprehensive test runs
     timestamp: string;
     network: string;
     totalEntities: number;
@@ -32,389 +36,247 @@ export interface KnowledgeGraphData {
   };
 }
 
-export const createKnowledgeGraphFromConversation = (conversationData: any): KnowledgeGraphData => {
+export const createKnowledgeGraphFromComprehensiveTestRun = (testRunData: any): KnowledgeGraphData => {
   const entities: KnowledgeGraphEntity[] = [];
   const relationships: KnowledgeGraphRelationship[] = [];
 
-  // 1. PERSONALITY Entity
+  // 1. TEST RUN Entity (Central hub)
   entities.push({
-    id: 'personality',
-    type: 'personality',
-    label: 'DeFi Efficiency Tester',
+    id: 'testRun',
+    type: 'testRun',
+    label: 'Test Run',
     attributes: {
-      name: conversationData.entry?.personality_name || 'DeFi Efficiency Tester',
-      role: 'AI Agent',
-      specialization: 'DeFi Operations',
-      capabilities: ['Transaction Analysis', 'Gas Optimization', 'DeFi Strategy'],
-      status: 'Active'
+      id: testRunData.entry?.test_run_id || 'unknown',
+      totalConversations: testRunData.entry?.total_conversations || 0,
+      totalTransactions: testRunData.entry?.total_transactions || 0,
+      personalities: testRunData.entry?.personalities || [],
+      timestamp: testRunData.entry?.test_run_timestamp || new Date().toISOString(),
+      status: 'Completed'
     },
-    relationships: ['conversation']
+    relationships: []
   });
 
-  // 2. CONVERSATION Entity
-  entities.push({
-    id: 'conversation',
-    type: 'conversation',
-    label: 'Conversation',
-    attributes: {
-      id: conversationData.entry?.conversation_id || 'unknown',
-      messageCount: conversationData.entry?.messages?.length || 0,
-      transactionCount: conversationData.entry?.transactions?.length || 0,
-      duration: 'Active Session',
-      status: 'Ongoing'
-    },
-    relationships: ['personality', 'timestamp', 'transaction']
-  });
-
-  // 3. TIMESTAMP Entity
-  const timestamp = new Date(conversationData.entry?.timestamp || Date.now());
-  entities.push({
-    id: 'timestamp',
-    type: 'timestamp',
-    label: 'Timestamp',
-    attributes: {
-      date: timestamp.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      }),
-      time: timestamp.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      }),
-      iso: conversationData.entry?.timestamp,
-      timezone: 'UTC',
-      relative: getRelativeTime(timestamp)
-    },
-    relationships: ['conversation']
-  });
-
-  // 4. TRANSACTION Entity (Central)
-  const transaction = conversationData.entry?.transactions?.[0];
-  if (transaction) {
+  // Process each conversation
+  const conversations = testRunData.entry?.conversations || [];
+  conversations.forEach((conversation: any, convIndex: number) => {
+    const convId = `conversation_${convIndex}`;
+    
+    // 2. PERSONALITY Entity for each conversation
     entities.push({
-      id: 'transaction',
+      id: `personality_${convIndex}`,
+      type: 'personality',
+      label: conversation.personality_name || 'Unknown Personality',
+      attributes: {
+        name: conversation.personality_name || 'Unknown Personality',
+        role: 'AI Agent',
+        specialization: 'DeFi Operations',
+        capabilities: ['Transaction Analysis', 'Gas Optimization', 'DeFi Strategy'],
+        status: 'Active',
+        conversationIndex: convIndex
+      },
+      relationships: [convId]
+    });
+
+    // 3. CONVERSATION Entity
+    entities.push({
+      id: convId,
+      type: 'conversation',
+      label: `Conversation ${convIndex + 1}`,
+      attributes: {
+        id: conversation.conversation_id || 'unknown',
+        personality: conversation.personality_name || 'Unknown',
+        messageCount: conversation.messages?.length || 0,
+        transactionCount: conversation.transactions?.length || 0,
+        duration: 'Active Session',
+        status: 'Completed',
+        conversationIndex: convIndex,
+        timestamp: conversation.timestamp
+      },
+      relationships: [`personality_${convIndex}`, `testRun`]
+    });
+
+    // 4. TIMESTAMP Entity for each conversation
+    const convTimestamp = new Date(conversation.timestamp || Date.now());
+    entities.push({
+      id: `timestamp_${convIndex}`,
+      type: 'timestamp',
+      label: 'Timestamp',
+      attributes: {
+        date: convTimestamp.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        }),
+        time: convTimestamp.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }),
+        iso: conversation.timestamp,
+        timezone: 'UTC',
+        relative: getRelativeTime(convTimestamp),
+        conversationIndex: convIndex
+      },
+      relationships: [convId]
+    });
+
+    // 5. Process transactions for this conversation
+    const convTransactions = conversation.transactions || [];
+    convTransactions.forEach((transaction: any, txIndex: number) => {
+      const txId = `transaction_${convIndex}_${txIndex}`;
+      
+      // TRANSACTION Entity
+      entities.push({
+        id: txId,
+        type: 'transaction',
+        label: `TX ${transaction.transaction_hash?.substring(0, 8)}...`,
+        attributes: {
+          hash: transaction.transaction_hash,
+          chain: 'Base Sepolia (84532)',
+          status: transaction.success ? 'SUCCESS' : 'FAILED',
+          method: transaction.raw_data?.data?.method || 'Unknown',
+          action: 'Transaction',
+          network: 'Base Sepolia',
+          blockNumber: transaction.raw_data?.data?.block_number || 'Unknown',
+          gasUsed: transaction.raw_data?.data?.gas_used || 'Unknown',
+          gasPrice: transaction.raw_data?.data?.gas_price || 'Unknown',
+          conversationIndex: convIndex,
+          transactionIndex: txIndex,
+          analysis: transaction.analysis
+        },
+        relationships: [convId, `testRun`]
+      });
+    });
+  });
+
+  // Process global transactions (if any)
+  const globalTransactions = testRunData.entry?.transactions || [];
+  globalTransactions.forEach((transaction: any, txIndex: number) => {
+    const txId = `global_transaction_${txIndex}`;
+    
+    entities.push({
+      id: txId,
       type: 'transaction',
-      label: 'Transaction',
+      label: `Global TX ${transaction.transaction_hash?.substring(0, 8)}...`,
       attributes: {
         hash: transaction.transaction_hash,
         chain: 'Base Sepolia (84532)',
         status: transaction.success ? 'SUCCESS' : 'FAILED',
-        method: 'claim()',
-        action: 'Faucet Claim',
+        method: transaction.raw_data?.data?.method || 'Unknown',
+        action: 'Transaction',
         network: 'Base Sepolia',
-        blockNumber: 'Latest',
-        gasUsed: '117,000',
-        gasPrice: '117,015 gwei'
+        blockNumber: transaction.raw_data?.data?.block_number || 'Unknown',
+        gasUsed: transaction.raw_data?.data?.gas_used || 'Unknown',
+        gasPrice: transaction.raw_data?.data?.gas_price || 'Unknown',
+        isGlobal: true,
+        analysis: transaction.analysis
       },
-      relationships: ['conversation', 'action', 'amount', 'gasMetrics', 'balanceState', 'confirmations']
+      relationships: ['testRun']
     });
+  });
 
-    // 5. ACTION Entity
-    entities.push({
-      id: 'action',
-      type: 'action',
-      label: 'Action',
-      attributes: {
-        method: 'claim()',
-        type: 'Faucet Claim',
-        description: 'Claim ETH from faucet',
-        contractAddress: 'Faucet Contract',
-        functionSignature: 'claim(address receiver, uint256 amount)',
-        parameters: {
-          receiver: 'Agent Address',
-          amount: '0.0001 ETH'
-        }
-      },
-      relationships: ['transaction']
+  // Create relationships
+  let relationshipId = 1;
+  
+  // Test Run -> Conversations
+  conversations.forEach((conversation: any, convIndex: number) => {
+    const convId = `conversation_${convIndex}`;
+    
+    // Test Run -> Conversation
+    relationships.push({
+      id: `rel_${relationshipId++}`,
+      source: 'testRun',
+      target: convId,
+      type: 'completed',
+      label: 'contains',
+      weight: 1
     });
-
-    // 6. AMOUNT Entity
-    entities.push({
-      id: 'amount',
-      type: 'amount',
-      label: 'Amount',
-      attributes: {
-        value: '0.0001 ETH',
-        wei: '100000000000000 wei',
-        description: 'Claimed amount',
-        currency: 'ETH',
-        precision: 18,
-        displayValue: '0.0001 ETH'
-      },
-      relationships: ['transaction']
+    
+    // Personality -> Conversation
+    relationships.push({
+      id: `rel_${relationshipId++}`,
+      source: `personality_${convIndex}`,
+      target: convId,
+      type: 'completed',
+      label: 'assigned to',
+      weight: 1
     });
-
-    // 7. GAS METRICS Entity
-    entities.push({
-      id: 'gasMetrics',
-      type: 'gasMetrics',
-      label: 'Gas Metrics',
-      attributes: {
-        used: '117,000 gas',
-        cost: '117,015 gwei',
-        efficiency: 'Optimal',
-        description: 'Transaction gas analysis',
-        gasLimit: '200,000',
-        gasPrice: '1 gwei',
-        totalCost: '0.000117015 ETH',
-        efficiencyScore: 95
-      },
-      relationships: ['transaction', 'agentAnalysis']
+    
+    // Conversation -> Timestamp
+    relationships.push({
+      id: `rel_${relationshipId++}`,
+      source: convId,
+      target: `timestamp_${convIndex}`,
+      type: 'temporal',
+      label: 'recorded_at',
+      weight: 1
     });
-
-    // 8. BALANCE STATE Entity
-    entities.push({
-      id: 'balanceState',
-      type: 'balanceState',
-      label: 'Balance State',
-      attributes: {
-        before: '0.0 ETH',
-        after: '0.0001 ETH',
-        network: 'Base Sepolia',
-        change: '+0.0001 ETH',
-        walletAddress: 'Agent Wallet',
-        balanceHistory: ['0.0 ETH', '0.0001 ETH'],
-        lastUpdated: timestamp.toISOString()
-      },
-      relationships: ['transaction', 'agentAnalysis', 'suggestedActions']
-    });
-
-    // 9. CONFIRMATIONS Entity
-    entities.push({
-      id: 'confirmations',
-      type: 'confirmations',
-      label: 'Confirmations',
-      attributes: {
-        count: '13 blocks',
-        time: '~2 seconds',
-        status: 'Secure',
-        description: 'Block confirmations',
-        finality: 'Final',
-        blockTime: '2 seconds',
-        securityLevel: 'High'
-      },
-      relationships: ['transaction', 'agentAnalysis']
-    });
-
-    // 10. AGENT ANALYSIS Entity
-    entities.push({
-      id: 'agentAnalysis',
-      type: 'agentAnalysis',
-      label: 'Agent Analysis',
-      attributes: {
-        transaction: 'Successful claim',
-        efficiency: 'No wastage, optimal gas',
-        speed: 'Fast confirmation (<2s)',
-        security: '13 confirmations verified',
-        summary: 'Transaction executed efficiently',
-        recommendations: [
-          'Gas usage optimal',
-          'Fast confirmation time',
-          'Secure transaction'
-        ],
-        confidence: 95
-      },
-      relationships: ['gasMetrics', 'balanceState', 'confirmations', 'userRequest']
-    });
-
-    // 11. SUGGESTED NEXT ACTIONS Entity
-    entities.push({
-      id: 'suggestedActions',
-      type: 'suggestedActions',
-      label: 'Suggested Actions',
-      attributes: {
-        actions: [
-          'DEX Swap (test liquidity & speed)',
-          'Staking/Lending (gauge returns)',
-          'ERC-4337 (account abstraction)'
-        ],
-        goal: 'Optimize gas efficiency',
-        priority: 'Medium',
-        feasibility: 'High',
-        estimatedGas: 'Variable'
-      },
-      relationships: ['balanceState']
-    });
-
-    // 12. USER REQUEST Entity
-    entities.push({
-      id: 'userRequest',
-      type: 'userRequest',
-      label: 'User Request',
-      attributes: {
-        request: 'Wrap 0.0005 ETH -> WETH',
-        status: 'INSUFFICIENT BALANCE',
-        target: '0x2514844f312c02ae3c9d4feb40db4ec8830b6844',
-        issue: 'Balance too low for requested amount',
-        requiredAmount: '0.0005 ETH',
-        availableAmount: '0.0001 ETH',
-        shortfall: '0.0004 ETH',
-        alternative: 'Wrap entire 0.0001 ETH'
-      },
-      relationships: ['agentAnalysis', 'targetContract']
-    });
-
-    // 13. TARGET CONTRACT Entity
-    entities.push({
-      id: 'targetContract',
-      type: 'targetContract',
-      label: 'Target Contract',
-      attributes: {
-        address: '0x2514844f312c02ae3c9d4feb40db4ec8830b6844',
-        type: 'WETH Wrapper',
-        network: 'Base Sepolia',
-        function: 'deposit()',
-        purpose: 'ETH to WETH conversion',
-        interface: 'ERC-20 Wrapper',
-        verified: true
-      },
-      relationships: ['userRequest']
-    });
-
-    // Create relationships
-    relationships.push(
-      // Personality -> Conversation
-      {
-        id: 'rel_1',
-        source: 'personality',
-        target: 'conversation',
-        type: 'completed',
-        label: 'assigned to',
-        weight: 1
-      },
-      // Conversation -> Timestamp
-      {
-        id: 'rel_2',
-        source: 'conversation',
-        target: 'timestamp',
-        type: 'temporal',
-        label: 'recorded_at',
-        weight: 1
-      },
-      // Conversation -> Transaction
-      {
-        id: 'rel_3',
-        source: 'conversation',
-        target: 'transaction',
+    
+    // Conversation -> Transactions
+    const convTransactions = conversation.transactions || [];
+    convTransactions.forEach((transaction: any, txIndex: number) => {
+      const txId = `transaction_${convIndex}_${txIndex}`;
+      
+      relationships.push({
+        id: `rel_${relationshipId++}`,
+        source: convId,
+        target: txId,
         type: 'completed',
         label: 'contains',
         weight: 1
-      },
-      // Action -> Transaction
-      {
-        id: 'rel_4',
-        source: 'action',
-        target: 'transaction',
-        type: 'causal',
-        label: 'method',
-        weight: 1
-      },
-      // Transaction -> Amount
-      {
-        id: 'rel_5',
-        source: 'transaction',
-        target: 'amount',
-        type: 'completed',
-        label: 'value',
-        weight: 1
-      },
-      // Gas Metrics -> Transaction
-      {
-        id: 'rel_6',
-        source: 'gasMetrics',
-        target: 'transaction',
-        type: 'completed',
-        label: 'consumed',
-        weight: 1
-      },
-      // Transaction -> Balance State
-      {
-        id: 'rel_7',
-        source: 'transaction',
-        target: 'balanceState',
-        type: 'completed',
-        label: 'updated',
-        weight: 1
-      },
-      // Transaction -> Confirmations
-      {
-        id: 'rel_8',
-        source: 'transaction',
-        target: 'confirmations',
-        type: 'completed',
-        label: 'verified by',
-        weight: 1
-      },
-      // Gas Metrics -> Agent Analysis
-      {
-        id: 'rel_9',
-        source: 'gasMetrics',
-        target: 'agentAnalysis',
-        type: 'analysis',
-        label: 'analyzed by',
-        weight: 0.8
-      },
-      // Balance State -> Agent Analysis
-      {
-        id: 'rel_10',
-        source: 'balanceState',
-        target: 'agentAnalysis',
-        type: 'analysis',
-        label: 'analyzes',
-        weight: 0.8
-      },
-      // Confirmations -> Agent Analysis
-      {
-        id: 'rel_11',
-        source: 'confirmations',
-        target: 'agentAnalysis',
-        type: 'analysis',
-        label: 'verified by',
-        weight: 0.8
-      },
-      // Balance State -> Suggested Actions
-      {
-        id: 'rel_12',
-        source: 'balanceState',
-        target: 'suggestedActions',
-        type: 'completed',
-        label: 'requires',
-        weight: 0.7
-      },
-      // Agent Analysis -> User Request (blocked)
-      {
-        id: 'rel_13',
-        source: 'agentAnalysis',
-        target: 'userRequest',
-        type: 'blocked',
-        label: 'analyzes',
-        weight: 0.6
-      },
-      // User Request -> Target Contract (blocked)
-      {
-        id: 'rel_14',
-        source: 'userRequest',
-        target: 'targetContract',
-        type: 'blocked',
-        label: 'destination',
-        weight: 0.5
-      }
-    );
-  }
+      });
+    });
+  });
+  
+  // Test Run -> Global Transactions
+  globalTransactions.forEach((transaction: any, txIndex: number) => {
+    const txId = `global_transaction_${txIndex}`;
+    
+    relationships.push({
+      id: `rel_${relationshipId++}`,
+      source: 'testRun',
+      target: txId,
+      type: 'completed',
+      label: 'contains',
+      weight: 1
+    });
+  });
 
   return {
     entities,
     relationships,
     metadata: {
-      conversationId: conversationData.entry?.conversation_id || 'unknown',
-      personalityName: conversationData.entry?.personality_name || 'Unknown',
-      timestamp: conversationData.entry?.timestamp || new Date().toISOString(),
+      testRunId: testRunData.entry?.test_run_id || 'unknown',
+      totalConversations: testRunData.entry?.total_conversations || 0,
+      totalTransactions: testRunData.entry?.total_transactions || 0,
+      personalities: testRunData.entry?.personalities || [],
+      timestamp: testRunData.entry?.test_run_timestamp || new Date().toISOString(),
       network: 'Base Sepolia',
       totalEntities: entities.length,
       totalRelationships: relationships.length
     }
   };
+};
+
+// Legacy function for backward compatibility (deprecated)
+export const createKnowledgeGraphFromConversation = (conversationData: any): KnowledgeGraphData => {
+  console.warn('createKnowledgeGraphFromConversation is deprecated. Use createKnowledgeGraphFromComprehensiveTestRun instead.');
+  
+  // Convert single conversation to comprehensive test run format
+  const testRunData = {
+    success: true,
+    entry_type: "comprehensive_test_run",
+    entry: {
+      conversations: [conversationData.entry],
+      transactions: conversationData.entry?.transactions || [],
+      total_conversations: 1,
+      total_transactions: conversationData.entry?.transactions?.length || 0,
+      personalities: [conversationData.entry?.personality_name || 'Unknown'],
+      test_run_timestamp: conversationData.entry?.timestamp || new Date().toISOString(),
+      test_run_id: conversationData.entry?.conversation_id || 'legacy'
+    }
+  };
+  
+  return createKnowledgeGraphFromComprehensiveTestRun(testRunData);
 };
 
 const getRelativeTime = (date: Date): string => {
@@ -428,7 +290,7 @@ const getRelativeTime = (date: Date): string => {
 };
 
 // Export the knowledge graph structure as JSON
-export const exportKnowledgeGraphAsJSON = (conversationData: any): string => {
-  const kgData = createKnowledgeGraphFromConversation(conversationData);
+export const exportKnowledgeGraphAsJSON = (testRunData: any): string => {
+  const kgData = createKnowledgeGraphFromComprehensiveTestRun(testRunData);
   return JSON.stringify(kgData, null, 2);
 };

@@ -2,12 +2,12 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { Database, Activity, TrendingUp, Clock, CheckCircle, XCircle } from 'lucide-react';
-import { createKnowledgeGraphFromConversation, KnowledgeGraphData } from '@/lib/knowledgeGraphStructure';
+import { createKnowledgeGraphFromComprehensiveTestRun, createKnowledgeGraphFromConversation, KnowledgeGraphData } from '@/lib/knowledgeGraphStructure';
 
 // Use the imported types from knowledgeGraphStructure
 
 interface KnowledgeGraphVisualizationProps {
-  conversationData: any;
+  conversationData: any; // Can be single conversation or comprehensive test run
   className?: string;
 }
 
@@ -37,6 +37,7 @@ export default function KnowledgeGraphVisualization({
 
   // Light color palette - All unique colors with gradient style
   const colors = {
+    testRun: '#FF6B35', // Orange - Central hub
     personality: '#FFB6C1', // Light Pink
     conversation: '#87CEEB', // Sky Blue
     timestamp: '#98FB98', // Pale Green
@@ -58,7 +59,19 @@ export default function KnowledgeGraphVisualization({
 
   useEffect(() => {
     if (conversationData) {
-      const processedData = createKnowledgeGraphFromConversation(conversationData);
+      // Detect if this is a comprehensive test run or single conversation
+      const isComprehensiveTestRun = conversationData.entry_type === 'comprehensive_test_run' || 
+                                   (conversationData.entry && conversationData.entry.conversations);
+      
+      let processedData: KnowledgeGraphData;
+      
+      if (isComprehensiveTestRun) {
+        processedData = createKnowledgeGraphFromComprehensiveTestRun(conversationData);
+      } else {
+        // Legacy single conversation format
+        processedData = createKnowledgeGraphFromConversation(conversationData);
+      }
+      
       setGraphData(processedData);
     }
   }, [conversationData]);
@@ -80,33 +93,90 @@ export default function KnowledgeGraphVisualization({
     const width = canvas.width;
     const height = canvas.height;
 
-    // Calculate grid dimensions for even distribution
-    const nodeCount = graphData.entities.length;
-    const cols = Math.ceil(Math.sqrt(nodeCount * (width / height)));
-    const rows = Math.ceil(nodeCount / cols);
-    
-    // Calculate spacing
-    const paddingX = 150;
-    const paddingY = 150;
-    const spaceX = (width - 2 * paddingX) / (cols - 1 || 1);
-    const spaceY = (height - 2 * paddingY) / (rows - 1 || 1);
+    // Group entities by conversation for better visual organization
+    const testRunNodes = graphData.entities.filter(e => e.type === 'testRun');
+    const conversationGroups = graphData.entities.reduce((groups: any, entity: any) => {
+      if (entity.attributes?.conversationIndex !== undefined) {
+        const convIndex = entity.attributes.conversationIndex;
+        if (!groups[convIndex]) groups[convIndex] = [];
+        groups[convIndex].push(entity);
+      } else if (entity.type === 'testRun') {
+        if (!groups['testRun']) groups['testRun'] = [];
+        groups['testRun'].push(entity);
+      } else {
+        // Global entities (like global transactions)
+        if (!groups['global']) groups['global'] = [];
+        groups['global'].push(entity);
+      }
+      return groups;
+    }, {});
 
-    // Convert entities to nodes with grid-based positioning
-    const nodes = graphData.entities.map((entity: any, index: number) => {
-      const col = index % cols;
-      const row = Math.floor(index / cols);
+    // Calculate layout for conversation groups
+    const groupKeys = Object.keys(conversationGroups);
+    const groupCount = groupKeys.length;
+    const groupCols = Math.ceil(Math.sqrt(groupCount));
+    const groupRows = Math.ceil(groupCount / groupCols);
+    
+    const groupPaddingX = 200;
+    const groupPaddingY = 200;
+    const groupSpaceX = (width - 2 * groupPaddingX) / (groupCols - 1 || 1);
+    const groupSpaceY = (height - 2 * groupPaddingY) / (groupRows - 1 || 1);
+
+    // Convert entities to nodes with conversation-based grouping
+    const nodes = graphData.entities.map((entity: any) => {
+      let x, y;
       
-      // Add some randomness to avoid perfect grid
-      const randomOffsetX = (Math.random() - 0.5) * 50;
-      const randomOffsetY = (Math.random() - 0.5) * 50;
+      if (entity.type === 'testRun') {
+        // Test run node in center
+        x = width / 2;
+        y = height / 2;
+      } else if (entity.attributes?.conversationIndex !== undefined) {
+        // Conversation group positioning
+        const convIndex = entity.attributes.conversationIndex;
+        const groupKey = convIndex.toString();
+        const groupIndex = groupKeys.indexOf(groupKey);
+        
+        if (groupIndex >= 0) {
+          const groupCol = groupIndex % groupCols;
+          const groupRow = Math.floor(groupIndex / groupCols);
+          
+          // Base position for this conversation group
+          const baseX = groupPaddingX + groupCol * groupSpaceX;
+          const baseY = groupPaddingY + groupRow * groupSpaceY;
+          
+          // Offset within the group based on entity type
+          let offsetX = 0, offsetY = 0;
+          if (entity.type === 'conversation') {
+            offsetX = 0; offsetY = 0; // Center of group
+          } else if (entity.type === 'personality') {
+            offsetX = -80; offsetY = -80; // Top-left of conversation
+          } else if (entity.type === 'timestamp') {
+            offsetX = 80; offsetY = -80; // Top-right of conversation
+          } else if (entity.type === 'transaction') {
+            offsetX = 0; offsetY = 100; // Below conversation
+          }
+          
+          x = baseX + offsetX + (Math.random() - 0.5) * 30;
+          y = baseY + offsetY + (Math.random() - 0.5) * 30;
+        } else {
+          x = Math.random() * width;
+          y = Math.random() * height;
+        }
+      } else {
+        // Global entities around the test run
+        const angle = Math.random() * 2 * Math.PI;
+        const distance = 200 + Math.random() * 100;
+        x = width / 2 + Math.cos(angle) * distance;
+        y = height / 2 + Math.sin(angle) * distance;
+      }
       
       return {
         ...entity,
-        x: entity.x || paddingX + col * spaceX + randomOffsetX,
-        y: entity.y || paddingY + row * spaceY + randomOffsetY,
+        x: entity.x || x,
+        y: entity.y || y,
         vx: entity.vx || 0,
         vy: entity.vy || 0,
-        size: entity.size || 100 // Bigger nodes for better visibility
+        size: entity.size || (entity.type === 'testRun' ? 120 : 80)
       };
     });
 
@@ -298,7 +368,11 @@ export default function KnowledgeGraphVisualization({
         );
         
         // Define gradient colors based on node type (dark → light)
-        if (node.type === 'personality') {
+        if (node.type === 'testRun') {
+          gradient.addColorStop(0, '#E55A2B'); // Dark orange
+          gradient.addColorStop(0.5, '#FF6B35'); // Medium orange
+          gradient.addColorStop(1, '#FF8C69'); // Light orange
+        } else if (node.type === 'personality') {
           gradient.addColorStop(0, '#FF69B4'); // Dark pink
           gradient.addColorStop(0.5, '#FFB6C1'); // Mild pink
           gradient.addColorStop(1, '#FFC0CB'); // Light pink
@@ -449,7 +523,7 @@ export default function KnowledgeGraphVisualization({
   return (
     <div className={`space-y-4 ${className}`}>
       {/* Graph Statistics */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-4 border border-white/10">
           <p className="text-white text-sm mb-1">Entities</p>
           <p className="text-white text-xl font-bold">{graphData.metadata.totalEntities}</p>
@@ -459,6 +533,10 @@ export default function KnowledgeGraphVisualization({
           <p className="text-white text-xl font-bold">{graphData.metadata.totalRelationships}</p>
         </div>
         <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-4 border border-white/10">
+          <p className="text-white text-sm mb-1">Conversations</p>
+          <p className="text-white text-xl font-bold">{graphData.metadata.totalConversations || 1}</p>
+        </div>
+        <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-4 border border-white/10">
           <p className="text-white text-sm mb-1">Network</p>
           <p className="text-white text-sm font-mono">Base Sepolia</p>
         </div>
@@ -466,7 +544,23 @@ export default function KnowledgeGraphVisualization({
 
       {/* Interactive Knowledge Graph */}
       <div className="w-full">
-        <h3 className="text-white font-semibold mb-4">DeFi Transaction Knowledge Graph</h3>
+        <h3 className="text-white font-semibold mb-4">
+          {graphData.metadata.totalConversations && graphData.metadata.totalConversations > 1 
+            ? `Multi-Conversation DeFi Knowledge Graph` 
+            : `DeFi Transaction Knowledge Graph`}
+        </h3>
+        {graphData.metadata.personalities && graphData.metadata.personalities.length > 0 && (
+          <div className="mb-4">
+            <p className="text-gray-400 text-sm mb-2">Personalities:</p>
+            <div className="flex flex-wrap gap-2">
+              {graphData.metadata.personalities.map((personality: string, index: number) => (
+                <span key={index} className="px-3 py-1 bg-orange-500/20 text-orange-300 rounded-full text-xs border border-orange-500/30">
+                  {personality}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="bg-black/20 rounded-xl border border-white/10 overflow-hidden mb-6">
             <canvas
               ref={canvasRef}
@@ -483,8 +577,12 @@ export default function KnowledgeGraphVisualization({
           <div className="grid grid-cols-3 gap-x-6 gap-y-3">
             {/* Node Types */}
             <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.testRun }} />
+              <span className="text-sm text-gray-300">Test Run</span>
+            </div>
+            <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.personality }} />
-              <span className="text-sm text-gray-300">DeFi Efficiency Tester</span>
+              <span className="text-sm text-gray-300">Personality</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.conversation }} />
@@ -560,7 +658,7 @@ export default function KnowledgeGraphVisualization({
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[selectedNode.type as keyof typeof colors] }} />
               {selectedNode.label}
             </h3>
-            {selectedNode.type === 'transaction' && conversationData?.entry?.transactions && (
+            {selectedNode.type === 'transaction' && (
               <button
                 onClick={() => setShowRawTxModal(true)}
                 className="px-3 py-1.5 bg-black text-white text-xs font-semibold rounded-lg transition-all duration-200 hover:bg-gray-900 border border-white/20"
@@ -568,7 +666,7 @@ export default function KnowledgeGraphVisualization({
                 Raw tx data
               </button>
             )}
-            {selectedNode.type === 'conversation' && conversationData?.entry?.messages && (
+            {selectedNode.type === 'conversation' && (
               <button
                 onClick={() => setShowConversationModal(true)}
                 className="px-3 py-1.5 bg-black text-white text-xs font-semibold rounded-lg transition-all duration-200 hover:bg-gray-900 border border-white/20"
@@ -576,7 +674,7 @@ export default function KnowledgeGraphVisualization({
                 View Conversation
               </button>
             )}
-            {selectedNode.type === 'agentAnalysis' && conversationData?.entry?.transactions && (
+            {selectedNode.type === 'agentAnalysis' && (
               <button
                 onClick={() => setShowAnalysisModal(true)}
                 className="px-3 py-1.5 bg-black text-white text-xs font-semibold rounded-lg transition-all duration-200 hover:bg-gray-900 border border-white/20"
@@ -621,8 +719,34 @@ export default function KnowledgeGraphVisualization({
             {/* Modal Content */}
             <div className="p-6 overflow-auto max-h-[calc(90vh-120px)]">
               <div className="space-y-6">
-                {conversationData?.entry?.transactions && conversationData.entry.transactions.length > 0 ? (
-                  conversationData.entry.transactions.map((tx: any, index: number) => (
+                {(() => {
+                  // Get transactions based on data structure
+                  const isComprehensiveTestRun = conversationData.entry_type === 'comprehensive_test_run' || 
+                                               (conversationData.entry && conversationData.entry.conversations);
+                  
+                  let transactions: any[] = [];
+                  if (isComprehensiveTestRun) {
+                    // Get all transactions from all conversations plus global transactions
+                    const convTransactions = conversationData.entry?.conversations?.flatMap((conv: any) => 
+                      (conv.transactions || []).map((tx: any, index: number) => ({
+                        ...tx,
+                        conversationId: conv.conversation_id,
+                        personality: conv.personality_name,
+                        isFromConversation: true
+                      }))
+                    ) || [];
+                    const globalTransactions = (conversationData.entry?.transactions || []).map((tx: any) => ({
+                      ...tx,
+                      isGlobal: true
+                    }));
+                    transactions = [...convTransactions, ...globalTransactions];
+                  } else {
+                    // Legacy single conversation format
+                    transactions = conversationData.entry?.transactions || [];
+                  }
+                  
+                  return transactions.length > 0 ? (
+                    transactions.map((tx: any, index: number) => (
                     <div key={index} className="space-y-4">
                       {/* Transaction Header */}
                       <div className="flex items-center justify-between bg-white/5 border border-white/20 rounded-xl p-4">
@@ -631,6 +755,16 @@ export default function KnowledgeGraphVisualization({
                           <p className="text-gray-400 text-xs mt-1">
                             {tx.timestamp ? new Date(tx.timestamp).toLocaleString() : 'N/A'}
                           </p>
+                          {tx.personality && (
+                            <p className="text-blue-400 text-xs mt-1">
+                              Personality: {tx.personality}
+                            </p>
+                          )}
+                          {tx.conversationId && (
+                            <p className="text-purple-400 text-xs mt-1">
+                              Conversation: {tx.conversationId.substring(0, 12)}...
+                            </p>
+                          )}
                         </div>
                         <div className="flex items-center gap-3">
                           <span className={`px-3 py-1 rounded-lg text-sm font-bold ${
@@ -737,16 +871,17 @@ export default function KnowledgeGraphVisualization({
                         </div>
                       )}
 
-                      {index < conversationData.entry.transactions.length - 1 && (
+                      {index < transactions.length - 1 && (
                         <div className="border-t border-white/10 my-6"></div>
                       )}
                     </div>
                   ))
-                ) : (
-                  <div className="text-center py-12">
-                    <p className="text-gray-400">No raw transaction data available</p>
-                  </div>
-                )}
+                  ) : (
+                    <div className="text-center py-12">
+                      <p className="text-gray-400">No raw transaction data available</p>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -775,38 +910,57 @@ export default function KnowledgeGraphVisualization({
             {/* Modal Content */}
             <div className="p-6 overflow-auto max-h-[calc(90vh-120px)]">
               <div className="space-y-6">
-                {conversationData?.entry?.messages && conversationData.entry.messages.length > 0 ? (
-                  <>
-                    {/* Conversation Header */}
-                    <div className="flex items-center justify-between bg-white/5 border border-white/20 rounded-xl p-4">
-                      <div>
-                        <h4 className="text-blue-400 font-bold text-lg">
-                          Conversation ID: {conversationData.entry.conversation_id?.substring(0, 8)}...
-                        </h4>
-                        <p className="text-gray-400 text-xs mt-1">
-                          {conversationData.entry.messages.length} messages
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="px-3 py-1 rounded-lg text-sm font-bold bg-black text-blue-400 border border-white/20">
-                          ACTIVE
-                        </span>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(JSON.stringify(conversationData.entry.messages, null, 2));
-                            setCopiedConversation(true);
-                            setTimeout(() => setCopiedConversation(false), 2000);
-                          }}
-                          className="px-3 py-1 bg-black text-white text-sm rounded-lg hover:bg-gray-900 transition-all border border-white/20"
-                        >
-                          {copiedConversation ? 'Copied' : 'Copy'}
-                        </button>
-                      </div>
-                    </div>
+                {(() => {
+                  // Get conversations based on data structure
+                  const isComprehensiveTestRun = conversationData.entry_type === 'comprehensive_test_run' || 
+                                               (conversationData.entry && conversationData.entry.conversations);
+                  
+                  let conversations: any[] = [];
+                  if (isComprehensiveTestRun) {
+                    conversations = conversationData.entry?.conversations || [];
+                  } else {
+                    // Legacy single conversation format
+                    conversations = conversationData.entry?.messages ? [conversationData.entry] : [];
+                  }
+                  
+                  return conversations.length > 0 ? (
+                    conversations.map((conv: any, convIndex: number) => (
+                      <div key={convIndex} className="space-y-4">
+                        {/* Conversation Header */}
+                        <div className="flex items-center justify-between bg-white/5 border border-white/20 rounded-xl p-4">
+                          <div>
+                            <h4 className="text-blue-400 font-bold text-lg">
+                              Conversation {convIndex + 1}: {conv.conversation_id?.substring(0, 8)}...
+                            </h4>
+                            <p className="text-gray-400 text-xs mt-1">
+                              {conv.messages?.length || 0} messages
+                            </p>
+                            {conv.personality_name && (
+                              <p className="text-purple-400 text-xs mt-1">
+                                Personality: {conv.personality_name}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="px-3 py-1 rounded-lg text-sm font-bold bg-black text-blue-400 border border-white/20">
+                              ACTIVE
+                            </span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(JSON.stringify(conv.messages, null, 2));
+                                setCopiedConversation(true);
+                                setTimeout(() => setCopiedConversation(false), 2000);
+                              }}
+                              className="px-3 py-1 bg-black text-white text-sm rounded-lg hover:bg-gray-900 transition-all border border-white/20"
+                            >
+                              {copiedConversation ? 'Copied' : 'Copy'}
+                            </button>
+                          </div>
+                        </div>
 
-                    {/* Messages Display */}
-                    <div className="space-y-4">
-                      {conversationData.entry.messages.map((message: any, index: number) => (
+                        {/* Messages Display */}
+                        <div className="space-y-4">
+                          {conv.messages?.map((message: any, index: number) => (
                         <div 
                           key={index}
                           className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -834,15 +988,21 @@ export default function KnowledgeGraphVisualization({
                               {message.content}
                             </p>
                           </div>
+                          </div>
+                          ))}
                         </div>
-                      ))}
+                        
+                        {convIndex < conversations.length - 1 && (
+                          <div className="border-t border-white/10 my-6"></div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-12">
+                      <p className="text-gray-400">No conversation data available</p>
                     </div>
-                  </>
-                ) : (
-                  <div className="text-center py-12">
-                    <p className="text-gray-400">No conversation data available</p>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -871,60 +1031,92 @@ export default function KnowledgeGraphVisualization({
             {/* Modal Content */}
             <div className="p-6 overflow-auto max-h-[calc(90vh-120px)]">
               <div className="space-y-6">
-                {conversationData?.entry?.transactions && conversationData.entry.transactions.length > 0 ? (
-                  <>
-                    {/* Analysis Header */}
-                    <div className="flex items-center justify-between bg-white/5 border border-white/20 rounded-xl p-4">
-                      <div>
-                        <h4 className="text-purple-400 font-bold text-lg">Transaction Analysis Report</h4>
-                        <p className="text-gray-400 text-xs mt-1">
-                          {conversationData.entry.transactions.length} transaction(s) analyzed
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="px-3 py-1 rounded-lg text-sm font-bold bg-black text-purple-400 border border-white/20">
-                          COMPLETE
-                        </span>
-                        <button
-                          onClick={() => {
-                            const analysisText = conversationData.entry.transactions.map((tx: any) => 
-                              tx.analysis || 'No analysis available'
-                            ).join('\n\n');
-                            navigator.clipboard.writeText(analysisText);
-                            setCopiedAnalysis(true);
-                            setTimeout(() => setCopiedAnalysis(false), 2000);
-                          }}
-                          className="px-3 py-1 bg-black text-white text-sm rounded-lg hover:bg-gray-900 transition-all border border-white/20"
-                        >
-                          {copiedAnalysis ? 'Copied' : 'Copy'}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Analysis Display */}
-                    <div className="space-y-4">
-                      {conversationData.entry.transactions.map((tx: any, index: number) => (
-                        <div key={index} className="bg-white/5 border-purple-400/40 backdrop-blur-xl rounded-2xl p-5 border">
-                          <div className="flex items-center gap-2 mb-3">
-                            <span className="text-sm font-bold transform -skew-x-12 text-purple-400">
-                              Analysis
-                            </span>
-                            <span className="text-xs text-gray-400">
-                              Transaction #{index + 1}
-                            </span>
-                          </div>
-                          <div className="text-white text-sm leading-relaxed whitespace-pre-wrap">
-                            {tx.analysis || 'No analysis data available for this transaction.'}
-                          </div>
+                {(() => {
+                  // Get transactions with analysis based on data structure
+                  const isComprehensiveTestRun = conversationData.entry_type === 'comprehensive_test_run' || 
+                                               (conversationData.entry && conversationData.entry.conversations);
+                  
+                  let transactions: any[] = [];
+                  if (isComprehensiveTestRun) {
+                    // Get all transactions from all conversations plus global transactions
+                    const convTransactions = conversationData.entry?.conversations?.flatMap((conv: any) => 
+                      (conv.transactions || []).map((tx: any) => ({
+                        ...tx,
+                        conversationId: conv.conversation_id,
+                        personality: conv.personality_name,
+                        isFromConversation: true
+                      }))
+                    ) || [];
+                    const globalTransactions = (conversationData.entry?.transactions || []).map((tx: any) => ({
+                      ...tx,
+                      isGlobal: true
+                    }));
+                    transactions = [...convTransactions, ...globalTransactions];
+                  } else {
+                    // Legacy single conversation format
+                    transactions = conversationData.entry?.transactions || [];
+                  }
+                  
+                  return transactions.length > 0 ? (
+                    <>
+                      {/* Analysis Header */}
+                      <div className="flex items-center justify-between bg-white/5 border border-white/20 rounded-xl p-4">
+                        <div>
+                          <h4 className="text-purple-400 font-bold text-lg">Transaction Analysis Report</h4>
+                          <p className="text-gray-400 text-xs mt-1">
+                            {transactions.length} transaction(s) analyzed
+                          </p>
                         </div>
-                      ))}
+                        <div className="flex items-center gap-3">
+                          <span className="px-3 py-1 rounded-lg text-sm font-bold bg-black text-purple-400 border border-white/20">
+                            COMPLETE
+                          </span>
+                          <button
+                            onClick={() => {
+                              const analysisText = transactions.map((tx: any) => 
+                                tx.analysis || 'No analysis available'
+                              ).join('\n\n');
+                              navigator.clipboard.writeText(analysisText);
+                              setCopiedAnalysis(true);
+                              setTimeout(() => setCopiedAnalysis(false), 2000);
+                            }}
+                            className="px-3 py-1 bg-black text-white text-sm rounded-lg hover:bg-gray-900 transition-all border border-white/20"
+                          >
+                            {copiedAnalysis ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Analysis Display */}
+                      <div className="space-y-4">
+                        {transactions.map((tx: any, index: number) => (
+                          <div key={index} className="bg-white/5 border-purple-400/40 backdrop-blur-xl rounded-2xl p-5 border">
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-sm font-bold transform -skew-x-12 text-purple-400">
+                                Analysis
+                              </span>
+                              <span className="text-xs text-gray-400">
+                                Transaction #{index + 1}
+                              </span>
+                              {tx.personality && (
+                                <span className="text-xs text-blue-400">
+                                  ({tx.personality})
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-white text-sm leading-relaxed whitespace-pre-wrap">
+                              {tx.analysis || 'No analysis data available for this transaction.'}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-12">
+                      <p className="text-gray-400">No analysis data available</p>
                     </div>
-                  </>
-                ) : (
-                  <div className="text-center py-12">
-                    <p className="text-gray-400">No analysis data available</p>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
           </div>
