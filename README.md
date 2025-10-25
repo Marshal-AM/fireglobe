@@ -6,10 +6,9 @@ An On-Chain Agent Testing framework.
 <img width="591" height="585" alt="fireglobe-logo" src="https://github.com/user-attachments/assets/e1ac37de-92f7-49ab-be0e-87575f3c6410" />
 </p>
 
-## How to use?
 
-For detailed demo instructions, visit [HOW-TO-USE.md](HOW-TO-USE.md)
-
+ - For detailed demo instructions, visit [HOW-TO-USE.md](HOW-TO-USE.md)
+ - For viewing results of a successful test run, visit [sample-results](sample-results)
 
 ## Introduction
 

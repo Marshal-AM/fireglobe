@@ -1,0 +1,130 @@
+{
+    "success": true,
+    "conversation_id": "comprehensive_test_run_test_run_52b33eb2-ae2c-4a54-a630-0633a53801ba",
+    "metrics": {
+      "test_id": "comprehensive_test_run_test_run_52b33eb2-ae2c-4a54-a630-0633a53801ba",
+      "personality_name": "Multi-Personality Test Run (5 personalities)",
+      "network": "Base Sepolia",
+      "timestamp": "2025-10-25T16:01:29.451623+00:00",
+      "test_run_id": "test_run_52b33eb2-ae2c-4a54-a630-0633a53801ba",
+      "test_run_timestamp": "2025-10-25T15:52:23.863777",
+      "personalities": [
+        "Trading Knowledge Seeker",
+        "Budget-Conscious Token Explorer",
+        "NFT Enthusiast Learner",
+        "DeFi Efficiency Advocate",
+        "Smart Contract Novice"
+      ],
+      "total_conversations": 5,
+      "total_transactions": 6,
+      "metrics": {
+        "capability": {
+          "action_success_rate": 100,
+          "action_type_coverage": [
+            "mint",
+            "transfer",
+            "swap",
+            "deploy",
+            "balance_check",
+            "faucet",
+            "wrap"
+          ],
+          "contract_interaction_accuracy": 100,
+          "state_verification_accuracy": 100,
+          "adaptive_error_recovery": 350,
+          "network_handling_score": 100
+        },
+        "efficiency": {
+          "avg_execution_latency_ms": 6966.12,
+          "avg_gas_used": 42632.5,
+          "gas_efficiency_percent": 49.26,
+          "cost_per_successful_action_eth": 0.000043,
+          "transaction_consistency_percent": 30.26,
+          "failure_rate_percent": 0
+        },
+        "reliability": {
+          "recovery_rate_percent": 0,
+          "tool_reliability_percent": 171.43,
+          "execution_determinism_percent": 88,
+          "network_adaptability_score": 90
+        },
+        "interaction": {
+          "response_latency_ms": 6966.12,
+          "instruction_compliance_percent": 100,
+          "transparency_score_percent": 96.77,
+          "personality_adherence_percent": 100,
+          "proactive_initiative_count": 5,
+          "conversation_stability_score": 97
+        },
+        "defi_reasoning": {
+          "defi_action_success_rate": 42.86,
+          "protocol_selection_accuracy": 100,
+          "approval_safety_score": 100,
+          "sequencing_logic_accuracy": 70,
+          "slippage_awareness": 100
+        },
+        "aggregate_scores": {
+          "capability_score": 100,
+          "efficiency_score": 59.84,
+          "reliability_score": 86.48,
+          "interaction_score": 98.92,
+          "defi_reasoning_score": 70.95,
+          "final_performance_index": 86.09
+        }
+      },
+      "summary": {
+        "overall_score": 86.09,
+        "execution_reliability": "High",
+        "transaction_efficiency": "Above average",
+        "response_behavior": "Highly responsive and transparent",
+        "defi_competence": "Moderate DeFi capabilities",
+        "general_assessment": "Performs well for mint, transfer, swap; shows strong capability across multiple operation types."
+      },
+      "improvement_areas": [
+        {
+          "area": "DeFi Action Success Rate",
+          "scope": "Agent fails 57.14% of DeFi operations (42.86% success rate), including wrap/swap failures on testnet.",
+          "suggestion": "Implement testnet-specific fallback logic for DeFi actions, prioritize mainnet-capable operations, and add slippage/token validation checks.",
+          "priority": "CRITICAL"
+        },
+        {
+          "area": "Execution Latency Optimization",
+          "scope": "High average execution latency of 6966.12 ms impacts user experience and responsiveness.",
+          "suggestion": "Optimize blockchain RPC calls, implement request batching, and add async processing for non-critical operations.",
+          "priority": "HIGH"
+        },
+        {
+          "area": "Gas Efficiency Improvement",
+          "scope": "Gas efficiency is low at 49.26%, indicating suboptimal transaction structuring.",
+          "suggestion": "Implement gas estimation optimizations, use more efficient contract methods, and add gas-aware transaction batching.",
+          "priority": "HIGH"
+        },
+        {
+          "area": "Error Recovery Logic",
+          "scope": "Recovery rate is 0% despite high error recovery metric, indicating ineffective failure handling.",
+          "suggestion": "Implement retry mechanisms with exponential backoff, better error interpretation, and user-guided fallback options.",
+          "priority": "HIGH"
+        },
+        {
+          "area": "Proactive Initiative Enhancement",
+          "scope": "Agent showed only 5 proactive initiatives despite 100% instruction compliance.",
+          "suggestion": "Train model to suggest next steps (e.g., funding, swaps after transfers) and anticipate user intent based on conversation context.",
+          "priority": "MEDIUM"
+        },
+        {
+          "area": "Execution Determinism",
+          "scope": "88% determinism score shows occasional inconsistent behavior across similar inputs.",
+          "suggestion": "Standardize state checks, improve input validation, and add deterministic testing for multi-personality scenarios.",
+          "priority": "MEDIUM"
+        },
+        {
+          "area": "Testnet/Mainnet Capability Gap",
+          "scope": "Agent lacks testnet-specific adaptations (e.g., swap API unavailable on testnet).",
+          "suggestion": "Develop network-aware capability routing and implement testnet-specific mock or simulated actions for unavailable features.",
+          "priority": "MEDIUM"
+        }
+      ]
+    },
+    "timestamp": "2025-10-25T16:02:00.848764+00:00",
+    "agent_address": "agent1q07f5sle9w4sdzeqlpfv23y84u2ky3czdrn6ymysctag4ce79gzhql44vj2"
+}
