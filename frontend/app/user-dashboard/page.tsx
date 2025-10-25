@@ -61,6 +61,12 @@ export default function UserDashboard() {
           const verifyData = await verifyResponse.json();
           setAccessToken(storedToken);
           setUserId(verifyData.user_id ?? null);
+          
+          // If we have a wallet address from Privy but the stored user doesn't have one, update it
+          if (walletAddress && !verifyData.wallet_address) {
+            await updateWalletAddress(walletAddress, storedToken);
+          }
+          
           setLoading(false);
           return;
         }
@@ -89,6 +95,22 @@ export default function UserDashboard() {
       setError(err instanceof Error ? err.message : 'Failed to get access token');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateWalletAddress = async (walletAddress: string, accessToken: string) => {
+    try {
+      const response = await fetch('/api/update-wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress, accessToken }),
+      });
+
+      if (!response.ok) {
+        console.error('Failed to update wallet address');
+      }
+    } catch (err) {
+      console.error('Error updating wallet address:', err);
     }
   };
 

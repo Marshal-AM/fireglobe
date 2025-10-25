@@ -36,8 +36,26 @@ export async function POST(request: NextRequest) {
       existingUser = data;
     }
 
-    // If user exists, return their access token
+    // If user exists, check if we need to update wallet address
     if (existingUser) {
+      // If user has no wallet address but we have one from Privy, update it
+      if (!existingUser.wallet_address && walletAddress) {
+        const { data: updatedUser, error: updateError } = await supabase
+          .from('users')
+          .update({ wallet_address: walletAddress })
+          .eq('user_id', existingUser.user_id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('Failed to update wallet address:', updateError);
+          // Continue with existing user data even if update fails
+        } else {
+          // Use updated user data
+          existingUser = updatedUser;
+        }
+      }
+
       return NextResponse.json({
         success: true,
         user_id: existingUser.user_id,
@@ -122,6 +140,7 @@ export async function GET(request: NextRequest) {
       user_id: user.user_id,
       email: user.email,
       name: user.name,
+      wallet_address: user.wallet_address,
       created_at: user.created_at,
     });
   } catch (error) {
