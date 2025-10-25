@@ -24,16 +24,28 @@ export default function KnowledgeGraphVisualization({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [graphData, setGraphData] = useState<KnowledgeGraphData | null>(null);
   const [selectedNode, setSelectedNode] = useState<any>(null);
-  const selectedNodeRef = useRef<any>(null); // Use ref to avoid re-running physics
-  const animationRef = useRef<number | undefined>(undefined);
+  const selectedNodeRef = useRef<any>(null);
   const currentNodesRef = useRef<any[]>([]);
-  const originalPositionsRef = useRef<{ x: number; y: number }[]>([]);
   const [showRawTxModal, setShowRawTxModal] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [showConversationModal, setShowConversationModal] = useState(false);
   const [copiedConversation, setCopiedConversation] = useState(false);
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const [copiedAnalysis, setCopiedAnalysis] = useState(false);
+  const [expandedConversations, setExpandedConversations] = useState<Set<number>>(new Set());
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [selectedTransactionHash, setSelectedTransactionHash] = useState<string | null>(null);
+  
+  // Drag and zoom state
+  const [isDragging, setIsDragging] = useState(false);
+  const [hasDragged, setHasDragged] = useState(false);
+  const [isMouseDown, setIsMouseDown] = useState(false);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [zoomLevel, setZoomLevel] = useState(1);
+  
+  // Use refs for immediate updates without re-renders
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const lastPanOffsetRef = useRef({ x: 0, y: 0 });
 
   // Light color palette - All unique colors with gradient style
   const colors = {
@@ -82,7 +94,7 @@ export default function KnowledgeGraphVisualization({
   }, [selectedNode]);
 
 
-  // Physics simulation
+  // Static rendering - no physics
   useEffect(() => {
     if (!canvasRef.current || !graphData) return;
 
@@ -93,37 +105,26 @@ export default function KnowledgeGraphVisualization({
     const width = canvas.width;
     const height = canvas.height;
 
-    // Group entities by conversation for better visual organization
-    const testRunNodes = graphData.entities.filter(e => e.type === 'testRun');
-    const conversationGroups = graphData.entities.reduce((groups: any, entity: any) => {
+    // Filter entities to show only conversation nodes initially, plus test run
+    const visibleEntities = graphData.entities.filter((entity: any) => {
+      // Always show test run node
+      if (entity.type === 'testRun') return true;
+      
+      // Show conversation nodes
+      if (entity.type === 'conversation') return true;
+      
+      // Show connected nodes only if conversation is expanded
       if (entity.attributes?.conversationIndex !== undefined) {
         const convIndex = entity.attributes.conversationIndex;
-        if (!groups[convIndex]) groups[convIndex] = [];
-        groups[convIndex].push(entity);
-      } else if (entity.type === 'testRun') {
-        if (!groups['testRun']) groups['testRun'] = [];
-        groups['testRun'].push(entity);
-      } else {
-        // Global entities (like global transactions)
-        if (!groups['global']) groups['global'] = [];
-        groups['global'].push(entity);
+        return expandedConversations.has(convIndex);
       }
-      return groups;
-    }, {});
+      
+      // Don't show global entities (including global transactions)
+      return false;
+    });
 
-    // Calculate layout for conversation groups
-    const groupKeys = Object.keys(conversationGroups);
-    const groupCount = groupKeys.length;
-    const groupCols = Math.ceil(Math.sqrt(groupCount));
-    const groupRows = Math.ceil(groupCount / groupCols);
-    
-    const groupPaddingX = 200;
-    const groupPaddingY = 200;
-    const groupSpaceX = (width - 2 * groupPaddingX) / (groupCols - 1 || 1);
-    const groupSpaceY = (height - 2 * groupPaddingY) / (groupRows - 1 || 1);
-
-    // Convert entities to nodes with conversation-based grouping
-    const nodes = graphData.entities.map((entity: any) => {
+    // Calculate static positions
+    const nodes = visibleEntities.map((entity: any, index: number) => {
       let x, y;
       
       if (entity.type === 'testRun') {
@@ -131,154 +132,76 @@ export default function KnowledgeGraphVisualization({
         x = width / 2;
         y = height / 2;
       } else if (entity.attributes?.conversationIndex !== undefined) {
-        // Conversation group positioning
+        // Conversation group positioning - evenly distributed around test run
         const convIndex = entity.attributes.conversationIndex;
-        const groupKey = convIndex.toString();
-        const groupIndex = groupKeys.indexOf(groupKey);
         
-        if (groupIndex >= 0) {
-          const groupCol = groupIndex % groupCols;
-          const groupRow = Math.floor(groupIndex / groupCols);
-          
-          // Base position for this conversation group
-          const baseX = groupPaddingX + groupCol * groupSpaceX;
-          const baseY = groupPaddingY + groupRow * groupSpaceY;
-          
-          // Offset within the group based on entity type
-          let offsetX = 0, offsetY = 0;
-          if (entity.type === 'conversation') {
-            offsetX = 0; offsetY = 0; // Center of group
-          } else if (entity.type === 'personality') {
-            offsetX = -80; offsetY = -80; // Top-left of conversation
-          } else if (entity.type === 'timestamp') {
-            offsetX = 80; offsetY = -80; // Top-right of conversation
-          } else if (entity.type === 'transaction') {
-            offsetX = 0; offsetY = 100; // Below conversation
-          }
-          
-          x = baseX + offsetX + (Math.random() - 0.5) * 30;
-          y = baseY + offsetY + (Math.random() - 0.5) * 30;
+        // Calculate total conversations for even distribution
+        const totalConversations = Math.max(1, graphData.entities.filter(e => e.type === 'conversation').length);
+        
+        // Position conversations in a circle around the test run node
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const radius = 400; // Distance from center (increased for better spacing)
+        
+        let baseX, baseY;
+        if (totalConversations === 1) {
+          // Single conversation - position to the right of test run
+          baseX = centerX + radius;
+          baseY = centerY;
         } else {
-          x = Math.random() * width;
-          y = Math.random() * height;
+          // Multiple conversations - distribute in circle
+          const angle = (convIndex * 2 * Math.PI) / totalConversations;
+          baseX = centerX + Math.cos(angle) * radius;
+          baseY = centerY + Math.sin(angle) * radius;
+        }
+        
+        // Don't apply pan offset to conversation nodes - keep distance constant
+        // Pan offset will be applied during rendering via canvas transformations
+        
+        // Offset within the group based on entity type
+        if (entity.type === 'conversation') {
+          x = baseX; y = baseY; // Center of group
+        } else if (entity.type === 'personality') {
+          x = baseX - 120; y = baseY - 100; // Top-left of conversation
+        } else if (entity.type === 'timestamp') {
+          x = baseX + 120; y = baseY - 100; // Top-right of conversation
+        } else if (entity.type === 'transaction') {
+          x = baseX; y = baseY + 140; // Below conversation
+        } else {
+          x = baseX + (index % 2 === 0 ? -80 : 80); 
+          y = baseY + 60;
         }
       } else {
-        // Global entities around the test run
-        const angle = Math.random() * 2 * Math.PI;
-        const distance = 200 + Math.random() * 100;
-        x = width / 2 + Math.cos(angle) * distance;
-        y = height / 2 + Math.sin(angle) * distance;
-      }
+          // Global entities around the test run
+          const angle = (index * 2 * Math.PI) / Math.max(visibleEntities.length - 1, 1);
+          const distance = 250;
+          x = width / 2 + Math.cos(angle) * distance;
+          y = height / 2 + Math.sin(angle) * distance;
+        }
       
-      return {
-        ...entity,
-        x: entity.x || x,
-        y: entity.y || y,
-        vx: entity.vx || 0,
-        vy: entity.vy || 0,
-        size: entity.size || (entity.type === 'testRun' ? 120 : 80)
-      };
+        return {
+          ...entity,
+          x,
+          y,
+          size: entity.type === 'testRun' ? 120 : 80
+        };
     });
 
-    let frameCount = 0;
-    const stabilizationFrames = 150; // Initial settling period
-    const links = graphData.relationships;
-    
-    // Reset original positions when graphData changes
-    originalPositionsRef.current = [];
-    
-    const simulate = () => {
-      frameCount++;
-      
-      // Store current node positions for click detection
-      currentNodesRef.current = nodes;
-      
-      const isStabilized = frameCount > stabilizationFrames;
+    // Store nodes for click detection
+    currentNodesRef.current = nodes;
 
-      if (!isStabilized) {
-        // Initial physics simulation to settle nodes
-        // MUCH WEAKER repulsion to keep grid-like structure
-        for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const dx = nodes[j].x! - nodes[i].x!;
-          const dy = nodes[j].y! - nodes[i].y!;
-          const distance = Math.sqrt(dx * dx + dy * dy) || 1;
-          const minDistance = (nodes[i].size! + nodes[j].size!) / 2 + 60;
-          
-          // Only apply force if too close
-          if (distance < minDistance) {
-            const force = 3000 / (distance * distance);
-            nodes[i].vx! -= (dx / distance) * force;
-            nodes[i].vy! -= (dy / distance) * force;
-            nodes[j].vx! += (dx / distance) * force;
-            nodes[j].vy! += (dy / distance) * force;
-          }
-        }
-      }
-
-      // VERY WEAK spring force for links - just to suggest connections
-      links.forEach((link: any) => {
-        const source = nodes.find((n: any) => n.id === link.source);
-        const target = nodes.find((n: any) => n.id === link.target);
-        
-        if (source && target) {
-          const dx = target.x! - source.x!;
-          const dy = target.y! - source.y!;
-          const distance = Math.sqrt(dx * dx + dy * dy) || 1;
-          const idealDistance = 300;
-          const force = (distance - idealDistance) * 0.005; // Very weak force
-          
-          source.vx! += (dx / distance) * force;
-          source.vy! += (dy / distance) * force;
-          target.vx! -= (dx / distance) * force;
-          target.vy! -= (dy / distance) * force;
-        }
-      });
-
-        // Update positions with strong damping to stabilize quickly
-        nodes.forEach((node) => {
-          node.vx! *= 0.92; // Strong damping
-          node.vy! *= 0.92;
-          node.x! += node.vx!;
-          node.y! += node.vy!;
-
-          // Keep nodes in bounds with padding
-          node.x = Math.max(100, Math.min(width - 100, node.x!));
-          node.y = Math.max(100, Math.min(height - 100, node.y!));
-        });
-      } else {
-        // After stabilization: smooth floating animation
-        const time = frameCount * 0.02; // Slow time progression
-        
-        // Store final positions once after stabilization
-        if (frameCount === stabilizationFrames + 1) {
-          originalPositionsRef.current = nodes.map(node => ({ x: node.x!, y: node.y! }));
-        }
-        
-        nodes.forEach((node, index) => {
-          // Each node has unique floating pattern based on its index
-          const offsetX = Math.sin(time + index * 0.5) * 20; // Float left-right (8px range)
-          const offsetY = Math.cos(time + index * 0.7) * 15; // Float up-down (6px range)
-          
-          // Apply smooth floating to stored positions
-          node.x = originalPositionsRef.current[index].x + offsetX;
-          node.y = originalPositionsRef.current[index].y + offsetY;
-        });
-      }
-
-      // Draw the graph
-      drawGraph();
-
-      animationRef.current = requestAnimationFrame(simulate);
-    };
-    
-    // Separate drawing function
+    // Draw the graph once
     const drawGraph = () => {
       ctx.fillStyle = colors.background;
       ctx.fillRect(0, 0, width, height);
 
+      // Apply transformations for zoom and pan
+      ctx.save();
+      ctx.translate(panOffset.x, panOffset.y);
+      ctx.scale(zoomLevel, zoomLevel);
+
       // Draw links
-      links.forEach((link: any) => {
+      graphData.relationships.forEach((link: any) => {
         const source = nodes.find((n: any) => n.id === link.source);
         const target = nodes.find((n: any) => n.id === link.target);
         
@@ -293,52 +216,6 @@ export default function KnowledgeGraphVisualization({
           ctx.stroke();
           
           ctx.setLineDash([]);
-          
-          // Draw link label if it exists
-          if (link.label) {
-            const midX = (source.x! + target.x!) / 2;
-            const midY = (source.y! + target.y!) / 2;
-            
-            // Calculate angle of the line
-            const dx = target.x! - source.x!;
-            const dy = target.y! - source.y!;
-            let angle = Math.atan2(dy, dx);
-            
-            // Keep text readable (not upside down)
-            if (angle > Math.PI / 2 || angle < -Math.PI / 2) {
-              angle = angle + Math.PI;
-            }
-            
-            // Set text style
-            ctx.save();
-            ctx.translate(midX, midY);
-            ctx.rotate(angle);
-            
-            // Draw background for better readability
-            ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            
-            const textMetrics = ctx.measureText(link.label);
-            const padding = 12;
-            const bgWidth = textMetrics.width + padding * 2;
-            const bgHeight = 28;
-            
-            // Background box
-            ctx.fillStyle = 'rgba(26, 26, 26, 0.95)';
-            ctx.fillRect(-bgWidth/2, -bgHeight/2, bgWidth, bgHeight);
-            
-            // Border
-            ctx.strokeStyle = colors.link;
-            ctx.lineWidth = 1;
-            ctx.strokeRect(-bgWidth/2, -bgHeight/2, bgWidth, bgHeight);
-            
-            // Text
-            ctx.fillStyle = '#FFD700';
-            ctx.fillText(link.label, 0, 0);
-            
-            ctx.restore();
-          }
         }
       });
 
@@ -346,131 +223,114 @@ export default function KnowledgeGraphVisualization({
       nodes.forEach((node: any) => {
         const isSelected = selectedNodeRef.current?.id === node.id;
         const nodeColor = colors[node.type as keyof typeof colors] || colors.accent;
-        const nodeSize = isSelected ? node.size! / 2 + 15 : node.size! / 2; // Make selected node bigger
-        
-        // Debug: log when drawing selected node
-        if (isSelected && frameCount % 60 === 0) { // Log every 60 frames to avoid spam
-          console.log('🎨 Drawing selected node:', node.label);
-        }
+        const nodeSize = isSelected ? node.size! + 10 : node.size!;
         
         // Simple glow for selected node
         if (isSelected) {
-          ctx.shadowBlur = 30;
-          ctx.shadowColor = '#FFD700'; // Gold glow
+          ctx.shadowBlur = 20;
+          ctx.shadowColor = '#FFD700';
         } else {
           ctx.shadowBlur = 0;
         }
 
-        // Create radial gradient for node
-        const gradient = ctx.createRadialGradient(
-          node.x!, node.y!, 0, // Inner circle (center)
-          node.x!, node.y!, nodeSize // Outer circle
-        );
-        
-        // Define gradient colors based on node type (dark → light)
-        if (node.type === 'testRun') {
-          gradient.addColorStop(0, '#E55A2B'); // Dark orange
-          gradient.addColorStop(0.5, '#FF6B35'); // Medium orange
-          gradient.addColorStop(1, '#FF8C69'); // Light orange
-        } else if (node.type === 'personality') {
-          gradient.addColorStop(0, '#FF69B4'); // Dark pink
-          gradient.addColorStop(0.5, '#FFB6C1'); // Mild pink
-          gradient.addColorStop(1, '#FFC0CB'); // Light pink
-        } else if (node.type === 'conversation') {
-          gradient.addColorStop(0, '#4682B4'); // Dark blue
-          gradient.addColorStop(0.5, '#87CEEB'); // Mild blue
-          gradient.addColorStop(1, '#B0E0E6'); // Light blue
-        } else if (node.type === 'timestamp') {
-          gradient.addColorStop(0, '#3CB371'); // Medium sea green
-          gradient.addColorStop(0.5, '#98FB98'); // Pale green
-          gradient.addColorStop(1, '#B9FBC0'); // Very pale green
-        } else if (node.type === 'balanceState') {
-          gradient.addColorStop(0, '#20B2AA'); // Dark aquamarine
-          gradient.addColorStop(0.5, '#7FFFD4'); // Mild aquamarine
-          gradient.addColorStop(1, '#AFEEEE'); // Light aquamarine
-        } else if (node.type === 'action') {
-          gradient.addColorStop(0, '#9370DB'); // Dark plum
-          gradient.addColorStop(0.5, '#DDA0DD'); // Mild plum
-          gradient.addColorStop(1, '#E6C3E6'); // Light plum
-        } else if (node.type === 'agentAnalysis') {
-          gradient.addColorStop(0, '#8B008B'); // Dark orchid
-          gradient.addColorStop(0.5, '#BA55D3'); // Medium orchid
-          gradient.addColorStop(1, '#DA70D6'); // Light orchid
-        } else if (node.type === 'transaction') {
-          gradient.addColorStop(0, '#DAA520'); // Dark gold
-          gradient.addColorStop(0.5, '#F0E68C'); // Mild khaki
-          gradient.addColorStop(1, '#FFFACD'); // Light yellow
-        } else if (node.type === 'suggestedActions') {
-          gradient.addColorStop(0, '#E9967A'); // Dark salmon
-          gradient.addColorStop(0.5, '#FFA07A'); // Light salmon
-          gradient.addColorStop(1, '#FFB6A3'); // Lighter salmon
-        } else if (node.type === 'amount') {
-          gradient.addColorStop(0, '#DAA520'); // Dark goldenrod
-          gradient.addColorStop(0.5, '#FFD700'); // Gold
-          gradient.addColorStop(1, '#FFEC8B'); // Light gold
-        } else if (node.type === 'gasMetrics') {
-          gradient.addColorStop(0, '#CC3300'); // Dark orange red
-          gradient.addColorStop(0.5, '#FF4500'); // Orange red
-          gradient.addColorStop(1, '#FF6347'); // Tomato red
-        } else if (node.type === 'confirmations') {
-          gradient.addColorStop(0, '#228B22'); // Forest green (dark)
-          gradient.addColorStop(0.5, '#32CD32'); // Lime green (medium)
-          gradient.addColorStop(1, '#7FFF00'); // Chartreuse (bright)
-        } else if (node.type === 'userRequest') {
-          gradient.addColorStop(0, '#C71585'); // Dark magenta
-          gradient.addColorStop(0.5, '#FF69B4'); // Deep pink
-          gradient.addColorStop(1, '#FF9ACB'); // Light deep pink
-        } else if (node.type === 'targetContract') {
-          gradient.addColorStop(0, '#1E3A8A'); // Dark royal blue
-          gradient.addColorStop(0.5, '#4169E1'); // Royal blue
-          gradient.addColorStop(1, '#6495ED'); // Cornflower blue
-        } else {
-          // Default gradient
-          gradient.addColorStop(0, nodeColor);
-          gradient.addColorStop(0.5, nodeColor);
-          gradient.addColorStop(1, nodeColor);
-        }
-
-        // Node circle with gradient
-        ctx.fillStyle = gradient;
+        // Node circle
+        ctx.fillStyle = nodeColor;
         ctx.beginPath();
         ctx.arc(node.x!, node.y!, nodeSize, 0, Math.PI * 2);
         ctx.fill();
 
-        // Node border - thicker gold border for selected
+        // Node border
         ctx.strokeStyle = isSelected ? '#FFD700' : '#000000';
-        ctx.lineWidth = isSelected ? 5 : 3;
+        ctx.lineWidth = isSelected ? 4 : 2;
         ctx.stroke();
 
         ctx.shadowBlur = 0;
 
-        // Label with better positioning and larger font
+        // Label
         ctx.fillStyle = colors.text;
-        ctx.font = `${isSelected ? '32' : '24'}px system-ui, -apple-system, sans-serif`;
+        ctx.font = `${isSelected ? '24' : '18'}px system-ui, -apple-system, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
+        ctx.fillText(node.label, node.x!, node.y! + nodeSize + 30);
         
-        const labelY = node.y! + node.size! / 2 + 50;
-        const labelX = node.x!;
-        
-        // Just text, no background
-        ctx.fillStyle = colors.text;
-        ctx.fillText(node.label, labelX, labelY);
+        // Add expansion indicator for conversation nodes
+        if (node.type === 'conversation' && node.attributes?.conversationIndex !== undefined) {
+          const convIndex = node.attributes.conversationIndex;
+          const isExpanded = expandedConversations.has(convIndex);
+          
+          ctx.fillStyle = isExpanded ? '#32CD32' : '#FFD700';
+          ctx.font = '20px system-ui, -apple-system, sans-serif';
+          ctx.fillText(isExpanded ? '−' : '+', node.x!, node.y! - nodeSize - 15);
+        }
       });
+
+      // Restore transformations
+      ctx.restore();
     };
 
-    simulate();
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [graphData]); // Remove selectedNode from dependencies to prevent restart on click
+    drawGraph();
+  }, [graphData, expandedConversations, panOffset, zoomLevel, selectedNode]);
 
 
   // Handle mouse click
+  const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    // Mark mouse as pressed down
+    setIsMouseDown(true);
+    setIsDragging(false);
+    setHasDragged(false);
+    
+    // Store drag start position in ref for immediate access
+    dragStartRef.current = { x: event.clientX, y: event.clientY };
+    lastPanOffsetRef.current = { ...panOffset };
+  };
+
+  const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    // Only handle mouse move if mouse is pressed down
+    if (!isMouseDown) return;
+    
+    if (!isDragging) {
+      // Check if we've moved enough to start dragging
+      const dx = event.clientX - dragStartRef.current.x;
+      const dy = event.clientY - dragStartRef.current.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance > 5) { // Small threshold for dragging
+        setIsDragging(true);
+        setHasDragged(true);
+      }
+    }
+    
+    if (isDragging) {
+      // Calculate new pan offset based on last known position + current drag
+      const newPanOffset = {
+        x: lastPanOffsetRef.current.x + (event.clientX - dragStartRef.current.x),
+        y: lastPanOffsetRef.current.y + (event.clientY - dragStartRef.current.y)
+      };
+      setPanOffset(newPanOffset);
+    }
+  };
+
+  const handleMouseUp = () => {
+    // Reset all dragging states immediately
+    setIsMouseDown(false);
+    setIsDragging(false);
+    setHasDragged(false);
+    
+    // Update the last pan offset ref to current state
+    lastPanOffsetRef.current = { ...panOffset };
+  };
+
+  const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
+    // More responsive zoom for trackpad
+    const zoomFactor = event.deltaY > 0 ? 0.95 : 1.05;
+    const newZoom = Math.max(0.3, Math.min(3, zoomLevel * zoomFactor));
+    setZoomLevel(newZoom);
+  };
+
   const handleMouseClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    // Don't handle clicks if we were dragging
+    if (hasDragged) return;
     const canvas = canvasRef.current;
     if (!canvas || !graphData) return;
 
@@ -484,28 +344,55 @@ export default function KnowledgeGraphVisualization({
     const scaledX = x * scaleX;
     const scaledY = y * scaleY;
 
-    // Use current node positions from the physics simulation
+    // Convert to world coordinates (account for pan and zoom)
+    const worldX = (scaledX - panOffset.x) / zoomLevel;
+    const worldY = (scaledY - panOffset.y) / zoomLevel;
+
+    // Use current node positions
     const nodes = currentNodesRef.current;
 
-    // Find ALL nodes under the click point
-    const clickedNodes = nodes.filter((node: any) => {
-      const dx = scaledX - node.x!;
-      const dy = scaledY - node.y!;
+    // Find clicked node with generous hit detection
+    const clickedNode = nodes.find((node: any) => {
+      if (node.x === undefined || node.y === undefined) return false;
+      
+      const dx = worldX - node.x;
+      const dy = worldY - node.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      // Larger click radius for easier selection
-      return distance < (node.size! / 2) + 15;
+      
+      // Generous hit detection
+      const threshold = (node.size! / 2) + 40;
+      return distance < threshold;
     });
 
-    if (clickedNodes.length > 0) {
-      // If multiple nodes overlap, pick the last one (drawn on top)
-      const clickedNode = clickedNodes[clickedNodes.length - 1];
-      console.log(' Node clicked:', clickedNode.label, 'ID:', clickedNode.id);
+    if (clickedNode) {
+      // Immediate state update
       setSelectedNode(clickedNode);
-      selectedNodeRef.current = clickedNode; // Also update ref directly
+      selectedNodeRef.current = clickedNode;
+      
+      // Handle conversation expansion
+      if (clickedNode.type === 'conversation' && clickedNode.attributes?.conversationIndex !== undefined) {
+        const convIndex = clickedNode.attributes.conversationIndex;
+        setExpandedConversations(prev => {
+          const newSet = new Set(prev);
+          if (newSet.has(convIndex)) {
+            newSet.delete(convIndex); // Collapse if already expanded
     } else {
-      console.log(' Clicked empty area - deselecting');
+            newSet.add(convIndex); // Expand if collapsed
+          }
+          return newSet;
+        });
+      }
+      
+      // Set selected IDs for modal filtering
+      if (clickedNode.type === 'conversation') {
+        setSelectedConversationId(clickedNode.attributes?.id || null);
+      } else if (clickedNode.type === 'transaction') {
+        setSelectedTransactionHash(clickedNode.attributes?.hash || null);
+      }
+    } else {
+      console.log('Clicked empty area - deselecting');
       setSelectedNode(null);
-      selectedNodeRef.current = null; // Also update ref directly
+      selectedNodeRef.current = null;
     }
   };
 
@@ -544,11 +431,24 @@ export default function KnowledgeGraphVisualization({
 
       {/* Interactive Knowledge Graph */}
       <div className="w-full">
-        <h3 className="text-white font-semibold mb-4">
-          {graphData.metadata.totalConversations && graphData.metadata.totalConversations > 1 
-            ? `Multi-Conversation DeFi Knowledge Graph` 
-            : `DeFi Transaction Knowledge Graph`}
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-white font-semibold">
+            {graphData.metadata.totalConversations && graphData.metadata.totalConversations > 1 
+              ? `Multi-Conversation DeFi Knowledge Graph` 
+              : `DeFi Transaction Knowledge Graph`}
+          </h3>
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400 text-sm">
+              {expandedConversations.size} of {graphData.metadata.totalConversations || 1} conversations expanded
+            </span>
+            <button
+              onClick={() => setExpandedConversations(new Set())}
+              className="px-3 py-1 bg-gray-700 text-white text-xs rounded-lg hover:bg-gray-600 transition-all"
+            >
+              Collapse All
+            </button>
+          </div>
+        </div>
         {graphData.metadata.personalities && graphData.metadata.personalities.length > 0 && (
           <div className="mb-4">
             <p className="text-gray-400 text-sm mb-2">Personalities:</p>
@@ -566,74 +466,48 @@ export default function KnowledgeGraphVisualization({
               ref={canvasRef}
               width={1600}
               height={900}
-              className="w-full h-auto cursor-pointer"
+              className="w-full h-auto cursor-grab active:cursor-grabbing"
               onClick={handleMouseClick}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onWheel={handleWheel}
             />
+        </div>
+        
+        {/* Instructions */}
+        <div className="text-center text-gray-400 text-sm mb-4">
+          <p>Click conversation nodes to expand/collapse their details. Click other nodes to view their information.</p>
+          <p>Drag to pan the graph. Use mouse wheel to zoom in/out.</p>
         </div>
         
         {/* Legend - Outside graph container */}
         <div className="backdrop-blur-xl bg-white/5 rounded-xl border border-white/10 p-4">
           <h4 className="text-white font-medium mb-3 text-sm">Legend</h4>
           <div className="grid grid-cols-3 gap-x-6 gap-y-3">
-            {/* Node Types */}
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.testRun }} />
-              <span className="text-sm text-gray-300">Test Run</span>
+            {/* Only show node types that are currently visible */}
+            {graphData && Array.from(new Set(graphData.entities.map(e => e.type))).map((nodeType) => {
+              if (!colors[nodeType as keyof typeof colors]) return null;
+              
+              return (
+                <div key={nodeType} className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors[nodeType as keyof typeof colors] }} />
+                  <span className="text-sm text-gray-300 capitalize">
+                    {nodeType === 'testRun' ? 'Test Run' : 
+                     nodeType === 'gasMetrics' ? 'Gas Metrics' :
+                     nodeType === 'balanceState' ? 'Balance State' :
+                     nodeType === 'agentAnalysis' ? 'Agent Analysis' :
+                     nodeType === 'suggestedActions' ? 'Suggested Actions' :
+                     nodeType === 'userRequest' ? 'User Request' :
+                     nodeType === 'targetContract' ? 'Target Contract' :
+                     nodeType}
+                  </span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.personality }} />
-              <span className="text-sm text-gray-300">Personality</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.conversation }} />
-              <span className="text-sm text-gray-300">Conversation</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.timestamp }} />
-              <span className="text-sm text-gray-300">Timestamp</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.action }} />
-              <span className="text-sm text-gray-300">Action</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.transaction }} />
-              <span className="text-sm text-gray-300">Transaction</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.amount }} />
-              <span className="text-sm text-gray-300">Amount</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.gasMetrics }} />
-              <span className="text-sm text-gray-300">Gas Metrics</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.balanceState }} />
-              <span className="text-sm text-gray-300">Balance State</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.confirmations }} />
-              <span className="text-sm text-gray-300">Confirmations</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.agentAnalysis }} />
-              <span className="text-sm text-gray-300">Agent Analysis</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.suggestedActions }} />
-              <span className="text-sm text-gray-300">Suggested Actions</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.userRequest }} />
-              <span className="text-sm text-gray-300">User Request</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.targetContract }} />
-              <span className="text-sm text-gray-300">Target Contract</span>
-            </div>
+              );
+            })}
             
-            {/* Relationship Lines */}
+            {/* Relationship Lines - always show */}
             <div className="flex items-center gap-2">
               <div className="text-sm text-gray-300">
                 <span className="inline-block w-8 h-0.5 bg-purple-400 mr-2"></span>
@@ -745,8 +619,13 @@ export default function KnowledgeGraphVisualization({
                     transactions = conversationData.entry?.transactions || [];
                   }
                   
-                  return transactions.length > 0 ? (
-                    transactions.map((tx: any, index: number) => (
+                  // Filter to show only selected transaction if one is selected
+                  const filteredTransactions = selectedTransactionHash 
+                    ? transactions.filter(tx => tx.transaction_hash === selectedTransactionHash)
+                    : transactions;
+                  
+                  return filteredTransactions.length > 0 ? (
+                    filteredTransactions.map((tx: any, index: number) => (
                     <div key={index} className="space-y-4">
                       {/* Transaction Header */}
                       <div className="flex items-center justify-between bg-white/5 border border-white/20 rounded-xl p-4">
@@ -876,10 +755,10 @@ export default function KnowledgeGraphVisualization({
                       )}
                     </div>
                   ))
-                  ) : (
-                    <div className="text-center py-12">
-                      <p className="text-gray-400">No raw transaction data available</p>
-                    </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-gray-400">No raw transaction data available</p>
+                  </div>
                   );
                 })()}
               </div>
@@ -923,43 +802,48 @@ export default function KnowledgeGraphVisualization({
                     conversations = conversationData.entry?.messages ? [conversationData.entry] : [];
                   }
                   
-                  return conversations.length > 0 ? (
-                    conversations.map((conv: any, convIndex: number) => (
+                  // Filter to show only selected conversation if one is selected
+                  const filteredConversations = selectedConversationId 
+                    ? conversations.filter(conv => conv.conversation_id === selectedConversationId)
+                    : conversations;
+                  
+                  return filteredConversations.length > 0 ? (
+                    filteredConversations.map((conv: any, convIndex: number) => (
                       <div key={convIndex} className="space-y-4">
-                        {/* Conversation Header */}
-                        <div className="flex items-center justify-between bg-white/5 border border-white/20 rounded-xl p-4">
-                          <div>
-                            <h4 className="text-blue-400 font-bold text-lg">
+                    {/* Conversation Header */}
+                    <div className="flex items-center justify-between bg-white/5 border border-white/20 rounded-xl p-4">
+                      <div>
+                        <h4 className="text-blue-400 font-bold text-lg">
                               Conversation {convIndex + 1}: {conv.conversation_id?.substring(0, 8)}...
-                            </h4>
-                            <p className="text-gray-400 text-xs mt-1">
+                        </h4>
+                        <p className="text-gray-400 text-xs mt-1">
                               {conv.messages?.length || 0} messages
-                            </p>
+                        </p>
                             {conv.personality_name && (
                               <p className="text-purple-400 text-xs mt-1">
                                 Personality: {conv.personality_name}
                               </p>
                             )}
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="px-3 py-1 rounded-lg text-sm font-bold bg-black text-blue-400 border border-white/20">
-                              ACTIVE
-                            </span>
-                            <button
-                              onClick={() => {
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="px-3 py-1 rounded-lg text-sm font-bold bg-black text-blue-400 border border-white/20">
+                          ACTIVE
+                        </span>
+                        <button
+                          onClick={() => {
                                 navigator.clipboard.writeText(JSON.stringify(conv.messages, null, 2));
-                                setCopiedConversation(true);
-                                setTimeout(() => setCopiedConversation(false), 2000);
-                              }}
-                              className="px-3 py-1 bg-black text-white text-sm rounded-lg hover:bg-gray-900 transition-all border border-white/20"
-                            >
-                              {copiedConversation ? 'Copied' : 'Copy'}
-                            </button>
-                          </div>
-                        </div>
+                            setCopiedConversation(true);
+                            setTimeout(() => setCopiedConversation(false), 2000);
+                          }}
+                          className="px-3 py-1 bg-black text-white text-sm rounded-lg hover:bg-gray-900 transition-all border border-white/20"
+                        >
+                          {copiedConversation ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    </div>
 
-                        {/* Messages Display */}
-                        <div className="space-y-4">
+                    {/* Messages Display */}
+                    <div className="space-y-4">
                           {conv.messages?.map((message: any, index: number) => (
                         <div 
                           key={index}
@@ -988,19 +872,19 @@ export default function KnowledgeGraphVisualization({
                               {message.content}
                             </p>
                           </div>
-                          </div>
-                          ))}
                         </div>
+                      ))}
+                    </div>
                         
                         {convIndex < conversations.length - 1 && (
                           <div className="border-t border-white/10 my-6"></div>
                         )}
                       </div>
                     ))
-                  ) : (
-                    <div className="text-center py-12">
-                      <p className="text-gray-400">No conversation data available</p>
-                    </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-gray-400">No conversation data available</p>
+                  </div>
                   );
                 })()}
               </div>
@@ -1057,64 +941,69 @@ export default function KnowledgeGraphVisualization({
                     transactions = conversationData.entry?.transactions || [];
                   }
                   
-                  return transactions.length > 0 ? (
-                    <>
-                      {/* Analysis Header */}
-                      <div className="flex items-center justify-between bg-white/5 border border-white/20 rounded-xl p-4">
-                        <div>
-                          <h4 className="text-purple-400 font-bold text-lg">Transaction Analysis Report</h4>
-                          <p className="text-gray-400 text-xs mt-1">
-                            {transactions.length} transaction(s) analyzed
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="px-3 py-1 rounded-lg text-sm font-bold bg-black text-purple-400 border border-white/20">
-                            COMPLETE
-                          </span>
-                          <button
-                            onClick={() => {
-                              const analysisText = transactions.map((tx: any) => 
-                                tx.analysis || 'No analysis available'
-                              ).join('\n\n');
-                              navigator.clipboard.writeText(analysisText);
-                              setCopiedAnalysis(true);
-                              setTimeout(() => setCopiedAnalysis(false), 2000);
-                            }}
-                            className="px-3 py-1 bg-black text-white text-sm rounded-lg hover:bg-gray-900 transition-all border border-white/20"
-                          >
-                            {copiedAnalysis ? 'Copied' : 'Copy'}
-                          </button>
-                        </div>
+                  // Filter to show only selected transaction if one is selected
+                  const filteredTransactions = selectedTransactionHash 
+                    ? transactions.filter(tx => tx.transaction_hash === selectedTransactionHash)
+                    : transactions;
+                  
+                  return filteredTransactions.length > 0 ? (
+                  <>
+                    {/* Analysis Header */}
+                    <div className="flex items-center justify-between bg-white/5 border border-white/20 rounded-xl p-4">
+                      <div>
+                        <h4 className="text-purple-400 font-bold text-lg">Transaction Analysis Report</h4>
+                        <p className="text-gray-400 text-xs mt-1">
+                            {filteredTransactions.length} transaction(s) analyzed
+                        </p>
                       </div>
+                      <div className="flex items-center gap-3">
+                        <span className="px-3 py-1 rounded-lg text-sm font-bold bg-black text-purple-400 border border-white/20">
+                          COMPLETE
+                        </span>
+                        <button
+                          onClick={() => {
+                              const analysisText = transactions.map((tx: any) => 
+                              tx.analysis || 'No analysis available'
+                            ).join('\n\n');
+                            navigator.clipboard.writeText(analysisText);
+                            setCopiedAnalysis(true);
+                            setTimeout(() => setCopiedAnalysis(false), 2000);
+                          }}
+                          className="px-3 py-1 bg-black text-white text-sm rounded-lg hover:bg-gray-900 transition-all border border-white/20"
+                        >
+                          {copiedAnalysis ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    </div>
 
-                      {/* Analysis Display */}
-                      <div className="space-y-4">
-                        {transactions.map((tx: any, index: number) => (
-                          <div key={index} className="bg-white/5 border-purple-400/40 backdrop-blur-xl rounded-2xl p-5 border">
-                            <div className="flex items-center gap-2 mb-3">
-                              <span className="text-sm font-bold transform -skew-x-12 text-purple-400">
-                                Analysis
-                              </span>
-                              <span className="text-xs text-gray-400">
-                                Transaction #{index + 1}
-                              </span>
+                    {/* Analysis Display */}
+                    <div className="space-y-4">
+                        {filteredTransactions.map((tx: any, index: number) => (
+                        <div key={index} className="bg-white/5 border-purple-400/40 backdrop-blur-xl rounded-2xl p-5 border">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-sm font-bold transform -skew-x-12 text-purple-400">
+                              Analysis
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              Transaction #{index + 1}
+                            </span>
                               {tx.personality && (
                                 <span className="text-xs text-blue-400">
                                   ({tx.personality})
                                 </span>
                               )}
-                            </div>
-                            <div className="text-white text-sm leading-relaxed whitespace-pre-wrap">
-                              {tx.analysis || 'No analysis data available for this transaction.'}
-                            </div>
                           </div>
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center py-12">
-                      <p className="text-gray-400">No analysis data available</p>
+                          <div className="text-white text-sm leading-relaxed whitespace-pre-wrap">
+                            {tx.analysis || 'No analysis data available for this transaction.'}
+                          </div>
+                        </div>
+                      ))}
                     </div>
+                  </>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-gray-400">No analysis data available</p>
+                  </div>
                   );
                 })()}
               </div>
