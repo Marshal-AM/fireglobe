@@ -178,7 +178,8 @@ export default function UserDashboard() {
     if (balance === null) return '—';
     const numBalance = parseFloat(balance);
     if (isNaN(numBalance)) return '—';
-    return numBalance.toFixed(4);
+    // Round to 4 decimal places and remove trailing zeros
+    return parseFloat(numBalance.toFixed(4)).toString();
   };
 
   const successRate = testRuns.length > 0 
