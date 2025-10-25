@@ -307,7 +307,7 @@ async function runTestMode(agent: any, config: any) {
       - Read blockchain data and transaction history
     `,
     accessToken: process.env.ACCESS_TOKEN!, // REQUIRED: User access token for test result storage
-    numPersonalities: 2, // Generate number of targeted test personalities
+    numPersonalities: 5, // Generate number of targeted test personalities
     maxMessagesPerConversation: 5,
     // Note: 10-second delay between exchanges is automatically applied to avoid rate limits
     saveConversations: true,

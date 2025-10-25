@@ -152,6 +152,13 @@ export default function UserDashboard() {
     return `${addr.slice(0, 8)}...${addr.slice(-3)}`; // Show first 6 chars after 0x + ... + last 3
   };
 
+  const formatFgcBalance = (balance: string | null) => {
+    if (balance === null) return '—';
+    const numBalance = parseFloat(balance);
+    if (isNaN(numBalance)) return '—';
+    return numBalance.toFixed(4);
+  };
+
   const successRate = testRuns.length > 0 
     ? Math.round((testRuns.filter(tr => tr.fgc_reward_tx).length / testRuns.length) * 100) 
     : 0;
@@ -244,7 +251,7 @@ export default function UserDashboard() {
                     className="w-10 h-10 rounded-full object-contain"
                   />
                   <p className="text-white text-2xl font-bold font-mono">
-                    {fgcBalance === null ? '—' : fgcBalance}
+                    {formatFgcBalance(fgcBalance)}
                   </p>
                 </div>
               </div>
