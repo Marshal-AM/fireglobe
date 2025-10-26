@@ -718,24 +718,41 @@ async def get_transaction_analysis_from_blockscout(tx_hash: str) -> Optional[Dic
         return None
 
 
-async def get_transaction_raw_data_from_blockscout(tx_hash: str) -> Optional[Dict[str, Any]]:
+async def get_transaction_raw_data_from_blockscout(tx_hash: str, chain_id: str = "84532") -> Optional[Dict[str, Any]]:
     """Get raw transaction data from BlockScout MCP via BlockscoutAgent."""
     import httpx
     
     try:
+        print(f"[BLOCKSCOUT-AGENT] Fetching raw data for tx: {tx_hash}, chain: {chain_id}")
         async with httpx.AsyncClient() as client:
-            # Call the test-blockscout endpoint to get raw data
+            # Call the analyze-transaction endpoint to get comprehensive data
             response = await client.post(
-                f"{BLOCKSCOUT_AGENT_URL}/rest/test-blockscout",
-                json={"tx_hash": tx_hash, "chain_id": "84532", "include_logs": True, "include_traces": False}
+                f"{BLOCKSCOUT_AGENT_URL}/rest/analyze-transaction",
+                json={
+                    "tx_hash": tx_hash, 
+                    "chain_id": chain_id, 
+                    "include_logs": True, 
+                    "include_traces": False
+                }
             )
+            print(f"[BLOCKSCOUT-AGENT] Response status: {response.status_code}")
+            
             if response.status_code == 200:
                 result = response.json()
+                print(f"[BLOCKSCOUT-AGENT] Response: {result}")
+                
                 if result.get("success") and result.get("data"):
+                    print(f"[BLOCKSCOUT-AGENT] ✅ Successfully fetched raw data for {tx_hash}")
                     return result["data"]
+                else:
+                    print(f"[BLOCKSCOUT-AGENT] ❌ No data in response: {result}")
+            else:
+                print(f"[BLOCKSCOUT-AGENT] ❌ HTTP error: {response.status_code} - {response.text}")
             return None
     except Exception as e:
-        print(f"Error getting raw data from BlockscoutAgent: {e}")
+        print(f"[BLOCKSCOUT-AGENT] Error getting raw data from BlockscoutAgent: {e}")
+        import traceback
+        print(f"[BLOCKSCOUT-AGENT] Traceback: {traceback.format_exc()}")
         return None
 
 
@@ -757,34 +774,41 @@ async def auto_fetch_missing_raw_data(ctx: Context, transactions: List[Dict[str,
     ctx.logger.info(f"[AUTO-FETCH] Found {len(missing_raw_data_txs)} transactions missing raw data")
     
     # Fetch raw data for each missing transaction
-    for tx_hash in missing_raw_data_txs:
-        try:
-            ctx.logger.info(f"[AUTO-FETCH] Fetching raw data for {tx_hash}")
-            
-            # Fetch raw data from BlockScoutAgent
-            raw_data = await get_transaction_raw_data_from_blockscout(tx_hash)
-            
-            if raw_data:
-                ctx.logger.info(f"[AUTO-FETCH] Successfully fetched raw data for {tx_hash}")
+    for tx in transactions:
+        tx_hash = tx.get('transaction_hash', '')
+        chain_id = tx.get('chain_id', '84532')
+        
+        if tx_hash and not tx.get('raw_data'):
+            try:
+                ctx.logger.info(f"[AUTO-FETCH] Fetching raw data for {tx_hash} on chain {chain_id}")
                 
-                # Store in Knowledge Graph
-                try:
-                    kg_result = conversation_kg.add_blockscout_analysis(
-                        transaction_hash=tx_hash,
-                        conversation_id="auto_fetch",  # Use a placeholder conversation ID
-                        analysis="Raw data auto-fetched",
+                # Fetch raw data from BlockScoutAgent
+                raw_data = await get_transaction_raw_data_from_blockscout(tx_hash, chain_id)
+                
+                if raw_data:
+                    ctx.logger.info(f"[AUTO-FETCH] Successfully fetched raw data for {tx_hash}")
+                    
+                    # Store raw data in the transaction
+                    tx['raw_data'] = raw_data
+                    
+                    # Store in Knowledge Graph
+                    try:
+                        kg_result = conversation_kg.add_blockscout_analysis(
+                            transaction_hash=tx_hash,
+                            conversation_id="auto_fetch",  # Use a placeholder conversation ID
+                            analysis="Raw data auto-fetched",
                         timestamp=datetime.utcnow().isoformat(),
                         chain_id="84532",
                         raw_data=raw_data
                     )
-                    ctx.logger.info(f"[AUTO-FETCH] Stored raw data in KG for {tx_hash}: {kg_result}")
-                except Exception as kg_error:
-                    ctx.logger.error(f"[AUTO-FETCH] Failed to store raw data in KG for {tx_hash}: {kg_error}")
-            else:
-                ctx.logger.warning(f"[AUTO-FETCH] No raw data found for {tx_hash}")
-                
-        except Exception as e:
-            ctx.logger.error(f"[AUTO-FETCH] Error fetching raw data for {tx_hash}: {e}")
+                        ctx.logger.info(f"[AUTO-FETCH] Stored raw data in KG for {tx_hash}: {kg_result}")
+                    except Exception as kg_error:
+                        ctx.logger.error(f"[AUTO-FETCH] Failed to store raw data in KG for {tx_hash}: {kg_error}")
+                else:
+                    ctx.logger.warning(f"[AUTO-FETCH] No raw data found for {tx_hash}")
+                    
+            except Exception as e:
+                ctx.logger.error(f"[AUTO-FETCH] Error fetching raw data for {tx_hash}: {e}")
     
     ctx.logger.info("[AUTO-FETCH] Auto-fetch completed")
 
@@ -1854,6 +1878,42 @@ async def handle_internal_history(ctx: Context) -> Model:
         )
 
 
+@agent.on_rest_post("/rest/test-blockscout-agent", Model)
+async def handle_test_blockscout_agent(ctx: Context, req: Model) -> Model:
+    """Test the BlockscoutAgent integration"""
+    ctx.logger.info("[TEST-BLOCKSCOUT] Testing BlockscoutAgent integration")
+    
+    try:
+        tx_hash = req.data.get("tx_hash", "0x346803257d98aa8cdb87347cb6a3b782a62d3d90547c225bee153ded7acc827c")
+        chain_id = req.data.get("chain_id", "84532")
+        
+        ctx.logger.info(f"[TEST-BLOCKSCOUT] Testing with tx: {tx_hash}, chain: {chain_id}")
+        
+        # Test the BlockscoutAgent
+        raw_data = await get_transaction_raw_data_from_blockscout(tx_hash, chain_id)
+        
+        if raw_data:
+            return Model(
+                success=True,
+                message=f"Successfully fetched raw data from BlockscoutAgent for {tx_hash}",
+                data=raw_data
+            )
+        else:
+            return Model(
+                success=False,
+                message=f"Failed to fetch raw data from BlockscoutAgent for {tx_hash}",
+                data=None
+            )
+            
+    except Exception as e:
+        ctx.logger.error(f"Failed to test BlockscoutAgent: {str(e)}")
+        return Model(
+            success=False,
+            message=f"Error testing BlockscoutAgent: {str(e)}",
+            data=None
+        )
+
+
 def enhance_conversation_with_transactions(conversation: Dict[str, Any], all_transactions: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Enhance a conversation with complete transaction analysis data"""
     enhanced_conv = conversation.copy()
@@ -1961,6 +2021,7 @@ async def startup_handler(ctx: Context):
     ctx.logger.info("  - GET  /rest/kg/all-transactions")
     ctx.logger.info("  - GET  /rest/kg/last-entry")
     ctx.logger.info("  - GET  /rest/internal-history")
+    ctx.logger.info("  - POST /rest/test-blockscout-agent")
     ctx.logger.info("  - POST /rest/fetch-raw-data")
     ctx.logger.info("🔄 Auto-fetch: /rest/kg/last-entry automatically fetches missing raw data")
     ctx.logger.info("🎯 Focus: Testing DeFi capabilities on Base Sepolia with existing funds!")
