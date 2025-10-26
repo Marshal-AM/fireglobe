@@ -61,8 +61,8 @@ graph TB
         ASI_MODEL[asi1-mini Model]
     end
     
-    subgraph "Agentverse"
-        Agentverse[Agent Registry & Discovery]
+    subgraph "Agentverse Platform"
+        AgentRegistry[Agent Registry & Discovery]
     end
     
     SDK --> Backend
@@ -75,9 +75,9 @@ graph TB
     Backend --> KG
     MetricsGen --> KG
     
-    Agentverse -.->|Registration & Discovery| Backend
-    Agentverse -.->|Registration & Discovery| BlockscoutAgent
-    Agentverse -.->|Registration & Discovery| MetricsGen
+    AgentRegistry -.->|Registration & Discovery| Backend
+    AgentRegistry -.->|Registration & Discovery| BlockscoutAgent
+    AgentRegistry -.->|Registration & Discovery| MetricsGen
     
     Backend -.->|A2A Communication| BlockscoutAgent
     Backend -.->|A2A Communication| MetricsGen
