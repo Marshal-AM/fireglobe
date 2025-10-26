@@ -245,7 +245,7 @@ Our goal is to become the **standard for on-chain agent testing**, providing com
 
 ### Adapter Contributions Welcome
 
-We encourage the community to contribute adapters for their favorite agent frameworks! See our [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute.
+We encourage the community to contribute adapters for their favorite agent frameworks! See our [CONTRIBUTING.md](https://github.com/Marshal-AM/fireglobe/blob/main/SDK/fireglobe-sdk-client/CONTRIBUTING.md) for guidelines on how to contribute.
 
 ## 🤝 Contributing
 
@@ -272,14 +272,14 @@ We welcome contributions to fireGlobe! Here's how you can help:
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/fireglobe.git
+   git clone https://github.com/Marshal-AM/fireglobe.git
    cd fireglobe
    ```
 
 2. **Install dependencies**:
    ```bash
    # SDK
-   cd SDK/cdp-agent-tester-sdk
+   cd SDK/firegllobe-sdk-client
    npm install
    
    # Backend
@@ -296,7 +296,7 @@ We welcome contributions to fireGlobe! Here's how you can help:
 4. **Run tests**:
    ```bash
    # SDK tests
-   cd SDK/cdp-agent-tester-sdk
+   cd SDK/fireglobe-sdk-client
    npm test
    
    # Backend tests
@@ -308,7 +308,7 @@ We welcome contributions to fireGlobe! Here's how you can help:
 
 To create an adapter for a new agent framework:
 
-1. **Study existing adapters** in `/SDK/cdp-agent-tester-sdk/src/adapters/`
+1. **Study existing adapters** in `/SDK/fireglobe-sdk-client/src/adapters/`
 2. **Implement the `IUniversalAgent` interface**:
    ```typescript
    export class YourFrameworkAdapter implements IUniversalAgent {
