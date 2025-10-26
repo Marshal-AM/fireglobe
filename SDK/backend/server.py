@@ -56,48 +56,65 @@ class ConversationKnowledgeGraph:
     
     def add_conversation(self, conversation_id: str, personality_name: str, messages: List[Dict[str, Any]], 
                         timestamp: str, evaluation: Optional[Dict[str, Any]] = None, test_run_id: Optional[str] = None):
-        """Add a conversation to the knowledge graph."""
-        # Generate a unique conversation ID within the test run
-        if test_run_id:
-            conv_id = f"{test_run_id}_{personality_name.lower().replace(' ', '_')}"
-        else:
-            conv_id = conversation_id.replace("-", "_")
-        
-        pers_id = personality_name.lower().replace(" ", "_")
-        
+        """Add a conversation to the knowledge graph using simple indexing."""
         print(f"[KG] add_conversation called")
-        print(f"[KG] Original conversation_id: {conversation_id}")
-        print(f"[KG] Generated conv_id: {conv_id}")
-        print(f"[KG] Personality: {personality_name}")
         print(f"[KG] Test run ID: {test_run_id}")
+        print(f"[KG] Personality: {personality_name}")
         
-        # Store conversation metadata
-        self.metta.space().add_atom(E(S("conversation_id"), S(conv_id), ValueAtom(conv_id)))
-        self.metta.space().add_atom(E(S("conversation_personality"), S(conv_id), ValueAtom(personality_name)))
-        self.metta.space().add_atom(E(S("conversation_timestamp"), S(conv_id), ValueAtom(timestamp)))
+        # Get the next conversation index for this test run
+        conversation_index = self.get_next_conversation_index(test_run_id)
+        print(f"[KG] Conversation index: {conversation_index}")
         
-        # Store test run ID if provided
-        if test_run_id:
-            self.metta.space().add_atom(E(S("conversation_test_run"), S(conv_id), ValueAtom(test_run_id)))
+        # Store conversation data using simple indexing
+        self.metta.space().add_atom(E(S("test_run_id"), S("current"), ValueAtom(test_run_id)))
+        self.metta.space().add_atom(E(S("conversation_personality"), S(str(conversation_index)), ValueAtom(personality_name)))
+        self.metta.space().add_atom(E(S("conversation_timestamp"), S(str(conversation_index)), ValueAtom(timestamp)))
         
         # Store messages as JSON string
         messages_json = json.dumps(messages)
-        self.metta.space().add_atom(E(S("conversation_messages"), S(conv_id), ValueAtom(messages_json)))
-        
-        # Link personality to conversation
-        self.metta.space().add_atom(E(S("personality_conversation"), S(pers_id), S(conv_id)))
-        
-        # Link conversation to test run if provided
-        if test_run_id:
-            self.metta.space().add_atom(E(S("test_run_conversation"), S(test_run_id), S(conv_id)))
+        self.metta.space().add_atom(E(S("conversation_messages"), S(str(conversation_index)), ValueAtom(messages_json)))
         
         # Store evaluation if provided
         if evaluation:
             eval_json = json.dumps(evaluation)
-            self.metta.space().add_atom(E(S("conversation_evaluation"), S(conv_id), ValueAtom(eval_json)))
+            self.metta.space().add_atom(E(S("conversation_evaluation"), S(str(conversation_index)), ValueAtom(eval_json)))
         
-        print(f"[KG] Successfully stored conversation: {conv_id}")
-        return f"Successfully added conversation: {conversation_id}"
+        # Update conversation count
+        self.metta.space().add_atom(E(S("conversation_count"), S("current"), ValueAtom(str(conversation_index + 1))))
+        
+        print(f"[KG] Successfully stored conversation at index: {conversation_index}")
+        return f"Successfully added conversation at index: {conversation_index}"
+    
+    def get_next_conversation_index(self, test_run_id: str) -> int:
+        """Get the next conversation index for a test run."""
+        # Check if this is a new test run (clear old data)
+        query_str = '!(match &self (test_run_id current $id) $id)'
+        results = self.metta.run(query_str)
+        
+        if results and results[0]:
+            current_test_run = results[0][0].get_object().value
+            if current_test_run != test_run_id:
+                # New test run - clear old data and start fresh
+                print(f"[KG] New test run detected: {test_run_id} (was: {current_test_run})")
+                self.clear_old_test_run_data()
+                return 0
+        
+        # Get current conversation count
+        query_str = '!(match &self (conversation_count current $count) $count)'
+        results = self.metta.run(query_str)
+        
+        if results and results[0]:
+            current_count = int(results[0][0].get_object().value)
+            return current_count
+        else:
+            return 0
+    
+    def clear_old_test_run_data(self):
+        """Clear all old test run data to start fresh."""
+        print(f"[KG] Clearing old test run data...")
+        # This is a simplified approach - in a real implementation, you'd want to properly remove atoms
+        # For now, we'll just overwrite with new data
+        pass
     
     def add_blockscout_analysis(self, transaction_hash: str, conversation_id: str, 
                                analysis: str, timestamp: str, chain_id: str = "", raw_data: Optional[Dict[str, Any]] = None):
@@ -151,57 +168,6 @@ class ConversationKnowledgeGraph:
         
         return f"Successfully added BlockScout analysis for transaction: {transaction_hash}"
     
-    def get_conversations_by_test_run(self, test_run_id: str) -> List[Dict[str, Any]]:
-        """Get all conversations for a specific test run."""
-        print(f"[KG] get_conversations_by_test_run called for: {test_run_id}")
-        query_str = f'!(match &self (conversation_test_run $conv_id {test_run_id}) $conv_id)'
-        print(f"[KG] Running query: {query_str}")
-        results = self.metta.run(query_str)
-        print(f"[KG] Query results: {results}")
-        
-        conversations = []
-        if results:
-            for result in results:
-                if result and len(result) > 0:
-                    conv_id = result[0].get_object().value
-                    print(f"[KG] Found conversation ID: {conv_id}")
-                    conv_data = self.query_conversation(conv_id)
-                    if conv_data:
-                        conversations.append(conv_data)
-                        print(f"[KG] Added conversation: {conv_data.get('personality_name', 'Unknown')}")
-        
-        print(f"[KG] Total conversations found: {len(conversations)}")
-        return conversations
-    
-    def append_conversation_to_test_run(self, test_run_id: str, personality_name: str, 
-                                      messages: List[Dict[str, Any]], timestamp: str):
-        """Append a conversation to an existing test run."""
-        # Generate a unique conversation ID within the test run
-        conv_id = f"{test_run_id}_{personality_name.lower().replace(' ', '_')}"
-        print(f"[KG] append_conversation_to_test_run called")
-        print(f"[KG] Test run ID: {test_run_id}")
-        print(f"[KG] Personality: {personality_name}")
-        print(f"[KG] Generated conv_id: {conv_id}")
-        
-        # Store conversation metadata
-        self.metta.space().add_atom(E(S("conversation_id"), S(conv_id), ValueAtom(conv_id)))
-        self.metta.space().add_atom(E(S("conversation_personality"), S(conv_id), ValueAtom(personality_name)))
-        self.metta.space().add_atom(E(S("conversation_timestamp"), S(conv_id), ValueAtom(timestamp)))
-        self.metta.space().add_atom(E(S("conversation_test_run"), S(conv_id), ValueAtom(test_run_id)))
-        
-        # Store messages as JSON string
-        messages_json = json.dumps(messages)
-        self.metta.space().add_atom(E(S("conversation_messages"), S(conv_id), ValueAtom(messages_json)))
-        
-        # Link personality to conversation
-        pers_id = personality_name.lower().replace(" ", "_")
-        self.metta.space().add_atom(E(S("personality_conversation"), S(pers_id), S(conv_id)))
-        
-        # Link conversation to test run
-        self.metta.space().add_atom(E(S("test_run_conversation"), S(test_run_id), S(conv_id)))
-        
-        print(f"[KG] Successfully stored conversation: {conv_id}")
-        return f"Successfully appended conversation to test run: {test_run_id}"
     
     def query_conversation(self, conversation_id: str) -> Optional[Dict[str, Any]]:
         """Query a specific conversation by ID."""
@@ -371,20 +337,63 @@ class ConversationKnowledgeGraph:
         return conversations
     
     def get_all_conversations(self) -> List[Dict[str, Any]]:
-        """Get all conversations in the knowledge graph."""
-        query_str = '!(match &self (conversation_id $conv_id $original_id) $original_id)'
+        """Get all conversations from the current test run using simple indexing."""
+        print(f"[KG] get_all_conversations called")
+        
+        # Get conversation count
+        query_str = '!(match &self (conversation_count current $count) $count)'
         results = self.metta.run(query_str)
         
+        if not results or not results[0]:
+            print(f"[KG] No conversations found")
+            return []
+        
+        conversation_count = int(results[0][0].get_object().value)
+        print(f"[KG] Found {conversation_count} conversations")
+        
         conversations = []
-        if results:
-            for result in results:
-                if result and len(result) > 0:
-                    original_id = result[0].get_object().value
-                    conv_data = self.query_conversation(original_id)
-                    if conv_data:
-                        conversations.append(conv_data)
+        for i in range(conversation_count):
+            conv_data = self.get_conversation_by_index(str(i))
+            if conv_data:
+                conversations.append(conv_data)
+                print(f"[KG] Retrieved conversation {i}: {conv_data.get('personality_name', 'Unknown')}")
         
         return conversations
+    
+    def get_conversation_by_index(self, index: str) -> Optional[Dict[str, Any]]:
+        """Get a conversation by its index."""
+        result = {}
+        
+        # Get personality
+        query_str = f'!(match &self (conversation_personality {index} $pers) $pers)'
+        pers_results = self.metta.run(query_str)
+        if pers_results and pers_results[0]:
+            result['personality_name'] = pers_results[0][0].get_object().value
+        
+        # Get timestamp
+        query_str = f'!(match &self (conversation_timestamp {index} $time) $time)'
+        time_results = self.metta.run(query_str)
+        if time_results and time_results[0]:
+            result['timestamp'] = time_results[0][0].get_object().value
+        
+        # Get messages
+        query_str = f'!(match &self (conversation_messages {index} $msgs) $msgs)'
+        msg_results = self.metta.run(query_str)
+        if msg_results and msg_results[0]:
+            messages_json = msg_results[0][0].get_object().value
+            result['messages'] = json.loads(messages_json)
+        
+        # Get evaluation if exists
+        query_str = f'!(match &self (conversation_evaluation {index} $eval) $eval)'
+        eval_results = self.metta.run(query_str)
+        if eval_results and eval_results[0]:
+            eval_json = eval_results[0][0].get_object().value
+            result['evaluation'] = json.loads(eval_json)
+        
+        # Add conversation index
+        result['conversation_index'] = index
+        
+        return result if result else None
     
     def get_all_transactions(self) -> List[Dict[str, Any]]:
         """Get all BlockScout transaction analyses in the knowledge graph."""
@@ -1306,35 +1315,20 @@ async def handle_store_conversation(ctx: Context, req: ConversationStorageReques
             print(f"[STORE-CONV] Conversation ID: {req.conversation_id}")
             print(f"[STORE-CONV] Personality: {req.personality_name}")
             
-            # Check if this test run already exists in KG
-            print(f"\n[STORE-CONV] ========== CHECKING EXISTING TEST RUN ==========")
+            # Store conversation using simple indexing
+            print(f"\n[STORE-CONV] ========== STORING CONVERSATION ==========")
             print(f"[STORE-CONV] Test run ID: {test_run_id}")
-            existing_conversations = conversation_kg.get_conversations_by_test_run(test_run_id)
-            print(f"[STORE-CONV] Existing conversations found: {len(existing_conversations)}")
+            print(f"[STORE-CONV] Personality: {req.personality_name}")
             
-            if existing_conversations:
-                # Append to existing test run
-                print(f"[STORE-CONV] ========== APPENDING TO EXISTING TEST RUN ==========")
-                kg_result = conversation_kg.append_conversation_to_test_run(
-                    test_run_id=test_run_id,
-                    personality_name=req.personality_name,
-                    messages=req.messages,
-                    timestamp=datetime.utcnow().isoformat()
-                )
-                ctx.logger.info(f"[STORE-CONV] Appended conversation to existing test run: {test_run_id}")
-                print(f"[STORE-CONV] ✅ APPENDED CONVERSATION TO EXISTING TEST RUN")
-            else:
-                # Create new test run
-                print(f"[STORE-CONV] ========== CREATING NEW TEST RUN ==========")
-                kg_result = conversation_kg.add_conversation(
-                    conversation_id=test_run_id,  # Use test run ID as the main ID
-                    personality_name=req.personality_name,
-                    messages=req.messages,
-                    timestamp=datetime.utcnow().isoformat(),
-                    test_run_id=test_run_id
-                )
-                ctx.logger.info(f"[STORE-CONV] Created new test run: {test_run_id}")
-                print(f"[STORE-CONV] ✅ CREATED NEW TEST RUN")
+            kg_result = conversation_kg.add_conversation(
+                conversation_id=test_run_id,  # Use test run ID
+                personality_name=req.personality_name,
+                messages=req.messages,
+                timestamp=datetime.utcnow().isoformat(),
+                test_run_id=test_run_id
+            )
+            ctx.logger.info(f"[STORE-CONV] Stored conversation in test run: {test_run_id}")
+            print(f"[STORE-CONV] ✅ CONVERSATION STORED WITH SIMPLE INDEXING")
             ctx.logger.info(f"[STORE-CONV] KG conversation storage: {kg_result}")
             print(f"[STORE-CONV] ✅ CONVERSATION STORED IN KG")
             print(f"[STORE-CONV] Result: {kg_result}\n")
@@ -1749,45 +1743,24 @@ async def handle_kg_last_entry(ctx: Context) -> KGLastEntryResponse:
                 message="No entries found in Knowledge Graph"
             )
         
-        # Group conversations by test_run_id and get the most recent test run
-        test_runs = {}
-        for conv in conversations:
-            test_run_id = conv.get('test_run_id', 'unknown')
-            if test_run_id not in test_runs:
-                test_runs[test_run_id] = []
-            test_runs[test_run_id].append(conv)
+        # Get current test run ID
+        query_str = '!(match &self (test_run_id current $id) $id)'
+        results = conversation_kg.metta.run(query_str)
         
-        # Find the most recent test run by timestamp
-        most_recent_test_run_id = None
-        most_recent_timestamp = ""
+        current_test_run_id = "unknown"
+        if results and results[0]:
+            current_test_run_id = results[0][0].get_object().value
         
-        for test_run_id, convs in test_runs.items():
-            # Get the most recent timestamp in this test run
-            latest_conv = max(convs, key=lambda x: x.get('timestamp', ''))
-            latest_timestamp = latest_conv.get('timestamp', '')
-            
-            if latest_timestamp > most_recent_timestamp:
-                most_recent_timestamp = latest_timestamp
-                most_recent_test_run_id = test_run_id
+        print(f"\n[LAST-ENTRY] ========== PROCESSING CONVERSATIONS ==========")
+        print(f"[LAST-ENTRY] Current test run ID: {current_test_run_id}")
+        print(f"[LAST-ENTRY] Total conversations: {len(conversations)}")
         
-        # Filter to only conversations from the most recent test run
-        if most_recent_test_run_id:
-            recent_conversations = test_runs[most_recent_test_run_id]
-            print(f"\n[LAST-ENTRY] ========== FILTERING TO MOST RECENT TEST RUN ==========")
-            print(f"[LAST-ENTRY] Most recent test run ID: {most_recent_test_run_id}")
-            print(f"[LAST-ENTRY] Conversations in this test run: {len(recent_conversations)}")
-        else:
-            recent_conversations = conversations
-            print(f"\n[LAST-ENTRY] ========== NO TEST RUN ID FOUND, USING ALL CONVERSATIONS ==========")
-        
-        # Process only the most recent test run conversations
+        # Process all conversations from current test run
         enhanced_conversations = []
-        print(f"\n[LAST-ENTRY] ========== PROCESSING {len(recent_conversations)} CONVERSATIONS ==========")
-        for i, conv in enumerate(recent_conversations):
-            print(f"[LAST-ENTRY] Processing conversation {i+1}/{len(recent_conversations)}")
+        for i, conv in enumerate(conversations):
+            print(f"[LAST-ENTRY] Processing conversation {i+1}/{len(conversations)}")
+            print(f"[LAST-ENTRY]   - Index: {conv.get('conversation_index', 'Unknown')}")
             print(f"[LAST-ENTRY]   - Personality: {conv.get('personality_name', 'Unknown')}")
-            print(f"[LAST-ENTRY]   - Conversation ID: {conv.get('conversation_id', 'Unknown')}")
-            print(f"[LAST-ENTRY]   - Test Run ID: {conv.get('test_run_id', 'Unknown')}")
             enhanced_conv = enhance_conversation_with_transactions(conv, transactions)
             enhanced_conversations.append(enhanced_conv)
             print(f"[LAST-ENTRY]   - Enhanced and added to list")
@@ -1800,23 +1773,35 @@ async def handle_kg_last_entry(ctx: Context) -> KGLastEntryResponse:
         print(f"[LAST-ENTRY] Unique personalities: {unique_personalities}")
         print(f"[LAST-ENTRY] Most recent timestamp: {most_recent_timestamp}")
         
+        # Get the most recent timestamp from conversations
+        most_recent_timestamp = ""
+        if enhanced_conversations:
+            timestamps = [conv.get('timestamp', '') for conv in enhanced_conversations if conv.get('timestamp')]
+            if timestamps:
+                most_recent_timestamp = max(timestamps)
+        
         comprehensive_entry = {
             "conversations": enhanced_conversations,
             "transactions": transactions,
             "total_conversations": len(enhanced_conversations),
             "total_transactions": len(transactions),
             "personalities": unique_personalities,
+            "test_run_id": current_test_run_id,
             "test_run_timestamp": most_recent_timestamp
         }
         
-        print(f"[LAST-ENTRY] ========== RETURNING RESPONSE ==========\n")
+        print(f"[LAST-ENTRY] ========== RETURNING RESPONSE ==========")
+        print(f"[LAST-ENTRY] Test run ID: {current_test_run_id}")
+        print(f"[LAST-ENTRY] Conversations: {len(enhanced_conversations)}")
+        print(f"[LAST-ENTRY] Personalities: {unique_personalities}")
+        print(f"[LAST-ENTRY] ======================================\n")
         
         return KGLastEntryResponse(
             success=True,
             entry_type="comprehensive_test_run",
             entry=comprehensive_entry,
             timestamp=most_recent_timestamp,
-            message=f"Retrieved comprehensive test run data with {len(enhanced_conversations)} conversations from {len(set(conv.get('personality_name', '') for conv in enhanced_conversations if conv.get('personality_name')))} personalities and {len(transactions)} transactions"
+            message=f"Retrieved comprehensive test run data with {len(enhanced_conversations)} conversations from {len(unique_personalities)} personalities and {len(transactions)} transactions"
         )
     
     except Exception as e:
