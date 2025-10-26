@@ -1596,6 +1596,12 @@ async def handle_kg_last_entry(ctx: Context) -> KGLastEntryResponse:
         conversations = conversation_kg.get_all_conversations()
         ctx.logger.info(f"[LAST-ENTRY] Found {len(conversations)} conversations")
         
+        # Debug: Log personality names
+        for i, conv in enumerate(conversations):
+            personality = conv.get('personality_name', 'Unknown')
+            conv_id = conv.get('conversation_id', 'Unknown')
+            ctx.logger.info(f"[LAST-ENTRY] Conversation {i+1}: ID={conv_id}, Personality={personality}")
+        
         ctx.logger.info("[LAST-ENTRY] Fetching all transactions...")
         transactions = conversation_kg.get_all_transactions()
         ctx.logger.info(f"[LAST-ENTRY] Found {len(transactions)} transactions")
@@ -1618,9 +1624,14 @@ async def handle_kg_last_entry(ctx: Context) -> KGLastEntryResponse:
         
         # Group conversations by personality and enhance with transaction data
         enhanced_conversations = []
-        for conv in conversations:
+        print(f"\n[LAST-ENTRY] ========== PROCESSING {len(conversations)} CONVERSATIONS ==========")
+        for i, conv in enumerate(conversations):
+            print(f"[LAST-ENTRY] Processing conversation {i+1}/{len(conversations)}")
+            print(f"[LAST-ENTRY]   - Personality: {conv.get('personality_name', 'Unknown')}")
+            print(f"[LAST-ENTRY]   - Conversation ID: {conv.get('conversation_id', 'Unknown')}")
             enhanced_conv = enhance_conversation_with_transactions(conv, transactions)
             enhanced_conversations.append(enhanced_conv)
+            print(f"[LAST-ENTRY]   - Enhanced and added to list")
         
         # Sort conversations by timestamp to get the most recent test run
         enhanced_conversations.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
@@ -1631,14 +1642,23 @@ async def handle_kg_last_entry(ctx: Context) -> KGLastEntryResponse:
             most_recent_timestamp = enhanced_conversations[0].get('timestamp', '')
         
         # Create a comprehensive response with ALL conversations and transactions
+        unique_personalities = list(set(conv.get('personality_name', '') for conv in enhanced_conversations if conv.get('personality_name')))
+        print(f"\n[LAST-ENTRY] ========== FINAL RESULTS ==========")
+        print(f"[LAST-ENTRY] Total enhanced conversations: {len(enhanced_conversations)}")
+        print(f"[LAST-ENTRY] Total transactions: {len(transactions)}")
+        print(f"[LAST-ENTRY] Unique personalities: {unique_personalities}")
+        print(f"[LAST-ENTRY] Most recent timestamp: {most_recent_timestamp}")
+        
         comprehensive_entry = {
             "conversations": enhanced_conversations,
             "transactions": transactions,
             "total_conversations": len(enhanced_conversations),
             "total_transactions": len(transactions),
-            "personalities": list(set(conv.get('personality_name', '') for conv in enhanced_conversations if conv.get('personality_name'))),
+            "personalities": unique_personalities,
             "test_run_timestamp": most_recent_timestamp
         }
+        
+        print(f"[LAST-ENTRY] ========== RETURNING RESPONSE ==========\n")
         
         return KGLastEntryResponse(
             success=True,
