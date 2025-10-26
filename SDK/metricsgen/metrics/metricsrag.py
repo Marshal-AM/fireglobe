@@ -32,9 +32,33 @@ class MetricsRAG:
                 data = response.json()
                 print(f"📊 Response data keys: {list(data.keys())}")
                 
-                if data.get('success') and data.get('entry_type') == 'conversation':
+                if data.get('success') and data.get('entry_type') == 'comprehensive_test_run':
+                    # Handle new comprehensive test run format
                     entry = data.get('entry', {})
-                    print(f"✅ Retrieved conversation: {entry.get('conversation_id')}")
+                    conversations = entry.get('conversations', [])
+                    transactions = entry.get('transactions', [])
+                    
+                    print(f"✅ Retrieved comprehensive test run")
+                    print(f"📊 Total conversations: {len(conversations)}")
+                    print(f"📊 Total transactions: {len(transactions)}")
+                    print(f"📊 Personalities: {entry.get('personalities', [])}")
+                    
+                    # Return the first conversation if available, or create a combined structure
+                    if conversations:
+                        first_conversation = conversations[0]
+                        # Add all transactions to the first conversation for comprehensive analysis
+                        first_conversation['all_transactions'] = transactions
+                        print(f"✅ Using first conversation: {first_conversation.get('conversation_id')}")
+                        print(f"📊 Messages: {len(first_conversation.get('messages', []))}")
+                        print(f"📊 Transactions: {len(first_conversation.get('transactions', []))}")
+                        print(f"📊 All transactions: {len(transactions)}")
+                        return first_conversation
+                    else:
+                        print(f"❌ No conversations found in test run")
+                elif data.get('success') and data.get('entry_type') == 'conversation':
+                    # Handle old single conversation format (backward compatibility)
+                    entry = data.get('entry', {})
+                    print(f"✅ Retrieved single conversation: {entry.get('conversation_id')}")
                     print(f"📊 Personality: {entry.get('personality_name')}")
                     print(f"📊 Messages: {len(entry.get('messages', []))}")
                     print(f"📊 Transactions: {len(entry.get('transactions', []))}")
@@ -182,4 +206,3 @@ class MetricsRAG:
         except Exception as e:
             print(f"❌ Error retrieving stored metrics: {e}")
             return None
-
