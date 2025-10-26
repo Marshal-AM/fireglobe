@@ -1878,7 +1878,7 @@ async def handle_internal_history(ctx: Context) -> Model:
         )
 
 
-@agent.on_rest_post("/rest/test-blockscout-agent", Model)
+@agent.on_rest_post("/rest/test-blockscout-agent", Model, Model)
 async def handle_test_blockscout_agent(ctx: Context, req: Model) -> Model:
     """Test the BlockscoutAgent integration"""
     ctx.logger.info("[TEST-BLOCKSCOUT] Testing BlockscoutAgent integration")
