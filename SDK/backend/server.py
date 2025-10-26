@@ -55,7 +55,7 @@ class ConversationKnowledgeGraph:
         self.metta.space().add_atom(E(S("personality_has"), S("personality"), S("conversations")))
     
     def add_conversation(self, conversation_id: str, personality_name: str, messages: List[Dict[str, Any]], 
-                        timestamp: str, evaluation: Optional[Dict[str, Any]] = None):
+                        timestamp: str, evaluation: Optional[Dict[str, Any]] = None, test_run_id: Optional[str] = None):
         """Add a conversation to the knowledge graph."""
         conv_id = conversation_id.replace("-", "_")
         pers_id = personality_name.lower().replace(" ", "_")
@@ -64,6 +64,10 @@ class ConversationKnowledgeGraph:
         self.metta.space().add_atom(E(S("conversation_id"), S(conv_id), ValueAtom(conversation_id)))
         self.metta.space().add_atom(E(S("conversation_personality"), S(conv_id), ValueAtom(personality_name)))
         self.metta.space().add_atom(E(S("conversation_timestamp"), S(conv_id), ValueAtom(timestamp)))
+        
+        # Store test run ID if provided
+        if test_run_id:
+            self.metta.space().add_atom(E(S("conversation_test_run"), S(conv_id), ValueAtom(test_run_id)))
         
         # Store messages as JSON string
         messages_json = json.dumps(messages)
@@ -162,6 +166,12 @@ class ConversationKnowledgeGraph:
         time_results = self.metta.run(query_str)
         if time_results and time_results[0]:
             result['timestamp'] = time_results[0][0].get_object().value
+        
+        # Get test run ID
+        query_str = f'!(match &self (conversation_test_run {conv_id} $test_run) $test_run)'
+        test_run_results = self.metta.run(query_str)
+        if test_run_results and test_run_results[0]:
+            result['test_run_id'] = test_run_results[0][0].get_object().value
         
         # Get messages
         query_str = f'!(match &self (conversation_messages {conv_id} $msgs) $msgs)'
@@ -1202,11 +1212,16 @@ async def handle_store_conversation(ctx: Context, req: ConversationStorageReques
         
         ctx.logger.info(f"[STORE-CONV] Extracted {len(transactions_in_conversation)} transactions from messages")
         
+        # Generate a test run ID based on the current hour to group conversations from the same test run
+        current_hour = datetime.utcnow().strftime("%Y-%m-%d_%H")
+        test_run_id = f"test_run_{current_hour}"
+        
         data = {
             "conversation_id": req.conversation_id,
             "personality_name": req.personality_name,
             "messages": req.messages,
             "transactions": transactions_in_conversation,
+            "test_run_id": test_run_id,  # Add test run ID for grouping
             "stored_at": datetime.utcnow().isoformat()
         }
         
@@ -1228,7 +1243,8 @@ async def handle_store_conversation(ctx: Context, req: ConversationStorageReques
                 conversation_id=req.conversation_id,
                 personality_name=req.personality_name,
                 messages=req.messages,
-                timestamp=datetime.utcnow().isoformat()
+                timestamp=datetime.utcnow().isoformat(),
+                test_run_id=test_run_id  # Add test run ID to KG storage
             )
             ctx.logger.info(f"[STORE-CONV] KG conversation storage: {kg_result}")
             print(f"[STORE-CONV] ✅ CONVERSATION STORED IN KG")
@@ -1644,24 +1660,48 @@ async def handle_kg_last_entry(ctx: Context) -> KGLastEntryResponse:
                 message="No entries found in Knowledge Graph"
             )
         
-        # Group conversations by personality and enhance with transaction data
+        # Group conversations by test_run_id and get the most recent test run
+        test_runs = {}
+        for conv in conversations:
+            test_run_id = conv.get('test_run_id', 'unknown')
+            if test_run_id not in test_runs:
+                test_runs[test_run_id] = []
+            test_runs[test_run_id].append(conv)
+        
+        # Find the most recent test run by timestamp
+        most_recent_test_run_id = None
+        most_recent_timestamp = ""
+        
+        for test_run_id, convs in test_runs.items():
+            # Get the most recent timestamp in this test run
+            latest_conv = max(convs, key=lambda x: x.get('timestamp', ''))
+            latest_timestamp = latest_conv.get('timestamp', '')
+            
+            if latest_timestamp > most_recent_timestamp:
+                most_recent_timestamp = latest_timestamp
+                most_recent_test_run_id = test_run_id
+        
+        # Filter to only conversations from the most recent test run
+        if most_recent_test_run_id:
+            recent_conversations = test_runs[most_recent_test_run_id]
+            print(f"\n[LAST-ENTRY] ========== FILTERING TO MOST RECENT TEST RUN ==========")
+            print(f"[LAST-ENTRY] Most recent test run ID: {most_recent_test_run_id}")
+            print(f"[LAST-ENTRY] Conversations in this test run: {len(recent_conversations)}")
+        else:
+            recent_conversations = conversations
+            print(f"\n[LAST-ENTRY] ========== NO TEST RUN ID FOUND, USING ALL CONVERSATIONS ==========")
+        
+        # Process only the most recent test run conversations
         enhanced_conversations = []
-        print(f"\n[LAST-ENTRY] ========== PROCESSING {len(conversations)} CONVERSATIONS ==========")
-        for i, conv in enumerate(conversations):
-            print(f"[LAST-ENTRY] Processing conversation {i+1}/{len(conversations)}")
+        print(f"\n[LAST-ENTRY] ========== PROCESSING {len(recent_conversations)} CONVERSATIONS ==========")
+        for i, conv in enumerate(recent_conversations):
+            print(f"[LAST-ENTRY] Processing conversation {i+1}/{len(recent_conversations)}")
             print(f"[LAST-ENTRY]   - Personality: {conv.get('personality_name', 'Unknown')}")
             print(f"[LAST-ENTRY]   - Conversation ID: {conv.get('conversation_id', 'Unknown')}")
+            print(f"[LAST-ENTRY]   - Test Run ID: {conv.get('test_run_id', 'Unknown')}")
             enhanced_conv = enhance_conversation_with_transactions(conv, transactions)
             enhanced_conversations.append(enhanced_conv)
             print(f"[LAST-ENTRY]   - Enhanced and added to list")
-        
-        # Sort conversations by timestamp to get the most recent test run
-        enhanced_conversations.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
-        
-        # Get the most recent timestamp
-        most_recent_timestamp = ""
-        if enhanced_conversations:
-            most_recent_timestamp = enhanced_conversations[0].get('timestamp', '')
         
         # Create a comprehensive response with ALL conversations and transactions
         unique_personalities = list(set(conv.get('personality_name', '') for conv in enhanced_conversations if conv.get('personality_name')))
