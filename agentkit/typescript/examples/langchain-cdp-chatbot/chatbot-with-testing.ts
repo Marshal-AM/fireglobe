@@ -285,15 +285,15 @@ async function runTestMode(agent: any, config: any) {
     agent,
     config,
     metadata: {
-      name: "CDP AgentKit Test Agent",
-      description: "A DeFi agent built with CDP AgentKit that can perform various onchain operations",
+      name: "FireGlobe Test Agent",
+      description: "A DeFi agent built with FireGlobe that can perform various onchain operations",
       version: "1.0.0",
     },
   });
 
   // Configure the tester
   const tester = new AgentTester({
-    agentDescription: "A DeFi agent built with CDP AgentKit for blockchain operations on Base Sepolia testnet.",
+    agentDescription: "A DeFi agent built with FireGlobe for blockchain operations on Base Sepolia testnet.",
     agentCapabilities: `
       The agent can perform the following operations:
       - Transfer native tokens (ETH) to any address
@@ -307,12 +307,13 @@ async function runTestMode(agent: any, config: any) {
       - Read blockchain data and transaction history
     `,
     accessToken: process.env.ACCESS_TOKEN!, // REQUIRED: User access token for test result storage
-    numPersonalities: 5, // Generate number of targeted test personalities
-    maxMessagesPerConversation: 5,
+    numPersonalities: 3, // Generate number of targeted test personalities
+    maxMessagesPerConversation: 2,
     // Note: 10-second delay between exchanges is automatically applied to avoid rate limits
     saveConversations: true,
     conversationOutputPath: "./test-results",
-    realTimeLogging: true
+    realTimeLogging: true,
+    dbServerUrl: process.env.DB_SERVER_URL, // Optional: defaults to http://localhost:3001
   });
 
   // Add event listeners for real-time updates
