@@ -135,6 +135,47 @@ class ConversationKnowledgeGraph:
         
         return f"Successfully added BlockScout analysis for transaction: {transaction_hash}"
     
+    def get_conversations_by_test_run(self, test_run_id: str) -> List[Dict[str, Any]]:
+        """Get all conversations for a specific test run."""
+        query_str = f'!(match &self (conversation_test_run $conv_id {test_run_id}) $conv_id)'
+        results = self.metta.run(query_str)
+        
+        conversations = []
+        if results:
+            for result in results:
+                if result and len(result) > 0:
+                    conv_id = result[0].get_object().value
+                    conv_data = self.query_conversation(conv_id)
+                    if conv_data:
+                        conversations.append(conv_data)
+        
+        return conversations
+    
+    def append_conversation_to_test_run(self, test_run_id: str, personality_name: str, 
+                                      messages: List[Dict[str, Any]], timestamp: str):
+        """Append a conversation to an existing test run."""
+        # Generate a unique conversation ID within the test run
+        conv_id = f"{test_run_id}_{personality_name.lower().replace(' ', '_')}"
+        
+        # Store conversation metadata
+        self.metta.space().add_atom(E(S("conversation_id"), S(conv_id), ValueAtom(conv_id)))
+        self.metta.space().add_atom(E(S("conversation_personality"), S(conv_id), ValueAtom(personality_name)))
+        self.metta.space().add_atom(E(S("conversation_timestamp"), S(conv_id), ValueAtom(timestamp)))
+        self.metta.space().add_atom(E(S("conversation_test_run"), S(conv_id), ValueAtom(test_run_id)))
+        
+        # Store messages as JSON string
+        messages_json = json.dumps(messages)
+        self.metta.space().add_atom(E(S("conversation_messages"), S(conv_id), ValueAtom(messages_json)))
+        
+        # Link personality to conversation
+        pers_id = personality_name.lower().replace(" ", "_")
+        self.metta.space().add_atom(E(S("personality_conversation"), S(pers_id), S(conv_id)))
+        
+        # Link conversation to test run
+        self.metta.space().add_atom(E(S("test_run_conversation"), S(test_run_id), S(conv_id)))
+        
+        return f"Successfully appended conversation to test run: {test_run_id}"
+    
     def query_conversation(self, conversation_id: str) -> Optional[Dict[str, Any]]:
         """Query a specific conversation by ID."""
         print(f"[KG] query_conversation called for: {conversation_id}")
@@ -1212,9 +1253,8 @@ async def handle_store_conversation(ctx: Context, req: ConversationStorageReques
         
         ctx.logger.info(f"[STORE-CONV] Extracted {len(transactions_in_conversation)} transactions from messages")
         
-        # Generate a test run ID based on the current hour to group conversations from the same test run
-        current_hour = datetime.utcnow().strftime("%Y-%m-%d_%H")
-        test_run_id = f"test_run_{current_hour}"
+        # Use the conversation_id as the test run ID (it's now the test run ID from SDK)
+        test_run_id = req.conversation_id  # This is now the test run ID from SDK
         
         data = {
             "conversation_id": req.conversation_id,
@@ -1239,13 +1279,28 @@ async def handle_store_conversation(ctx: Context, req: ConversationStorageReques
             print(f"[STORE-CONV] Conversation ID: {req.conversation_id}")
             print(f"[STORE-CONV] Personality: {req.personality_name}")
             
-            kg_result = conversation_kg.add_conversation(
-                conversation_id=req.conversation_id,
-                personality_name=req.personality_name,
-                messages=req.messages,
-                timestamp=datetime.utcnow().isoformat(),
-                test_run_id=test_run_id  # Add test run ID to KG storage
-            )
+            # Check if this test run already exists in KG
+            existing_conversations = conversation_kg.get_conversations_by_test_run(test_run_id)
+            
+            if existing_conversations:
+                # Append to existing test run
+                kg_result = conversation_kg.append_conversation_to_test_run(
+                    test_run_id=test_run_id,
+                    personality_name=req.personality_name,
+                    messages=req.messages,
+                    timestamp=datetime.utcnow().isoformat()
+                )
+                ctx.logger.info(f"[STORE-CONV] Appended conversation to existing test run: {test_run_id}")
+            else:
+                # Create new test run
+                kg_result = conversation_kg.add_conversation(
+                    conversation_id=test_run_id,  # Use test run ID as the main ID
+                    personality_name=req.personality_name,
+                    messages=req.messages,
+                    timestamp=datetime.utcnow().isoformat(),
+                    test_run_id=test_run_id
+                )
+                ctx.logger.info(f"[STORE-CONV] Created new test run: {test_run_id}")
             ctx.logger.info(f"[STORE-CONV] KG conversation storage: {kg_result}")
             print(f"[STORE-CONV] ✅ CONVERSATION STORED IN KG")
             print(f"[STORE-CONV] Result: {kg_result}\n")
