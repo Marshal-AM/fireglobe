@@ -50,14 +50,19 @@ In the FireGlobe Agent Testing Platform, ASI:One serves as the **core AI reasoni
 graph TB
     subgraph "FireGlobe Platform"
         SDK[Fireglobe SDK]
-        Backend[Backend Server]
+        Backend[Backend Server Agent]
         BlockscoutAgent[BlockscoutAgent]
-        MetricsGen[Metrics Generator]
+        MetricsGen[Metrics Generator Agent]
+        KG[MeTTa Knowledge Graph]
     end
     
     subgraph "ASI:One AI Platform"
         ASI_API[ASI:One API]
         ASI_MODEL[asi1-mini Model]
+    end
+    
+    subgraph "Agentverse"
+        Agentverse[Agent Registry & Discovery]
     end
     
     SDK --> Backend
@@ -67,8 +72,15 @@ graph TB
     
     ASI_API --> ASI_MODEL
     
-    Backend --> BlockscoutAgent
-    Backend --> MetricsGen
+    Backend --> KG
+    MetricsGen --> KG
+    
+    Agentverse -.->|Registration & Discovery| Backend
+    Agentverse -.->|Registration & Discovery| BlockscoutAgent
+    Agentverse -.->|Registration & Discovery| MetricsGen
+    
+    Backend -.->|A2A Communication| BlockscoutAgent
+    Backend -.->|A2A Communication| MetricsGen
 ```
 
 ### Integration Points
@@ -257,7 +269,7 @@ class LLM:
 
 ```mermaid
 sequenceDiagram
-    participant SDK as CDP Agent Tester SDK
+    participant SDK as Fireglobe SDK
     participant Backend as Backend Server
     participant ASI as ASI:One API
     participant Agent as Target Agent
@@ -285,7 +297,7 @@ sequenceDiagram
 ### 2. Detailed Step-by-Step Process
 
 #### Phase 1: Personality Generation
-1. **SDK Request**: CDP Agent Tester SDK requests personality generation
+1. **SDK Request**: Fireglobe SDK requests personality generation
 2. **Backend Processing**: Backend server receives agent description and capabilities
 3. **ASI:One Prompt**: Sophisticated prompt sent to ASI:One API:
    ```python
@@ -711,7 +723,7 @@ Each agent follows a structured startup process that ensures proper initializati
 ```python
 @agent.on_event("startup")
 async def startup_handler(ctx: Context):
-    ctx.logger.info(f"CDP Agent Tester Backend started with address: {ctx.agent.address}")
+    ctx.logger.info(f"Fireglobe Agent Tester Backend started with address: {ctx.agent.address}")
     ctx.logger.info("🧪 Ready to generate personalities for BASE SEPOLIA TESTING!")
     ctx.logger.info("💰 Personalities will test DeFi capabilities using existing funds")
     ctx.logger.info("📊 Powered by ASI:One AI reasoning")
