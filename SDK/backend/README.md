@@ -90,12 +90,12 @@ graph TB
    - Conversation evaluation and scoring
    - Message generation for test personas
 
-2. **BlockscoutAgent** (`SDK/BlockscoutAgent/main.py`)
+2. **BlockscoutAgent** (`SDK/backend/BlockscoutAgent/main.py`)
    - Transaction analysis and interpretation
    - Blockchain data insights
    - Risk assessment and recommendations
 
-3. **Metrics Generator** (`SDK/metricsgen/agent.py`)
+3. **Metrics Generator** (`SDK/backend/MetricsGenAgent/agent.py`)
    - Performance metrics analysis
    - Comprehensive reporting
    - AI-powered insights generation
