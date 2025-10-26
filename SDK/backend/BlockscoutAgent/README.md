@@ -87,18 +87,19 @@ graph TB
 
 ### Integration Points
 
-1. **BlockscoutAgent** (`SDK/BlockscoutAgent/main.py`)
+1. **BlockscoutAgent** (`SDK/backend/BlockscoutAgent/main.py`)
    - Real-time transaction data retrieval from BlockScout MCP
    - AI-powered transaction analysis using ASI:One
    - A2A communication with Backend Server
    - REST API endpoints for external access
 
 2. **Backend Server** (`SDK/backend/server.py`)
-   - Initiates transaction analysis requests via A2A communication
+   - Generates Personas, engages in Conversation with the agent to be tested
+   - Initiates transaction analysis requests via A2A communication with the BlockScout Agent
    - Receives analysis results and stores them in knowledge graph
    - Coordinates transaction analysis workflow
 
-3. **Metrics Generator** (`SDK/metricsgen/agent.py`)
+4. **Metrics Generator Agent** (`SDK/backend/MetricsGenAgent/agent.py`)
    - Retrieves transaction analysis data for comprehensive metrics
    - Uses transaction insights for performance evaluation
 
