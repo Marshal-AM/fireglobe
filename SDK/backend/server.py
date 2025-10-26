@@ -1168,8 +1168,15 @@ async def handle_transaction_analysis_response(ctx: Context, sender: str, msg: T
 @agent.on_rest_post("/rest/store-conversation", ConversationStorageRequest, ConversationStorageResponse)
 async def handle_store_conversation(ctx: Context, req: ConversationStorageRequest) -> ConversationStorageResponse:
     """Store a conversation for later analysis - now extracts and stores transaction data from messages"""
+    ctx.logger.info(f"[STORE-CONV] ========== NEW CONVERSATION STORAGE REQUEST ==========")
     ctx.logger.info(f"[STORE-CONV] Storing conversation: {req.conversation_id}")
     ctx.logger.info(f"[STORE-CONV] Personality: {req.personality_name}")
+    ctx.logger.info(f"[STORE-CONV] Number of messages: {len(req.messages)}")
+    print(f"\n[STORE-CONV] ========== STORING CONVERSATION ==========")
+    print(f"[STORE-CONV] Conversation ID: {req.conversation_id}")
+    print(f"[STORE-CONV] Personality: {req.personality_name}")
+    print(f"[STORE-CONV] Messages count: {len(req.messages)}")
+    print(f"[STORE-CONV] ==============================================\n")
     ctx.logger.info(f"[STORE-CONV] Number of messages: {len(req.messages)}")
     
     try:
@@ -1210,7 +1217,13 @@ async def handle_store_conversation(ctx: Context, req: ConversationStorageReques
         
         # Store in Knowledge Graph with transactions
         try:
-            ctx.logger.info(f"[STORE-CONV] Storing conversation in KG...")
+            ctx.logger.info(f"[STORE-CONV] ========== STORING IN KNOWLEDGE GRAPH ==========")
+            ctx.logger.info(f"[STORE-CONV] Conversation ID: {req.conversation_id}")
+            ctx.logger.info(f"[STORE-CONV] Personality: {req.personality_name}")
+            print(f"\n[STORE-CONV] ========== STORING IN KG ==========")
+            print(f"[STORE-CONV] Conversation ID: {req.conversation_id}")
+            print(f"[STORE-CONV] Personality: {req.personality_name}")
+            
             kg_result = conversation_kg.add_conversation(
                 conversation_id=req.conversation_id,
                 personality_name=req.personality_name,
@@ -1218,6 +1231,15 @@ async def handle_store_conversation(ctx: Context, req: ConversationStorageReques
                 timestamp=datetime.utcnow().isoformat()
             )
             ctx.logger.info(f"[STORE-CONV] KG conversation storage: {kg_result}")
+            print(f"[STORE-CONV] ✅ CONVERSATION STORED IN KG")
+            print(f"[STORE-CONV] Result: {kg_result}\n")
+            
+            # Verify storage by counting conversations
+            all_convs = conversation_kg.get_all_conversations()
+            ctx.logger.info(f"[STORE-CONV] Total conversations in KG after storage: {len(all_convs)}")
+            print(f"[STORE-CONV] 📊 Total conversations in KG now: {len(all_convs)}")
+            for i, conv in enumerate(all_convs):
+                print(f"[STORE-CONV]    {i+1}. {conv.get('personality_name', 'Unknown')} - ID: {conv.get('conversation_id', 'Unknown')[:8]}...")
             
             # Store each transaction in KG
             for tx_data in transactions_in_conversation:
