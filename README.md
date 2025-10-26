@@ -9,6 +9,7 @@ An On-Chain Agent Testing framework.
 
  - For detailed demo instructions, visit [HOW-TO-USE.md](HOW-TO-USE.md)
  - For viewing results of a successful test run, visit [sample-results](sample-results)
+ - Check out our NPM Package [fireglobe-sdk-client](https://www.npmjs.com/package/fireglobe-sdk-client)
 
 ## Introduction
 
