@@ -76,8 +76,8 @@ The Artificial Superintelligence Alliance (ASI) is fundamental to fireGlobe's ar
 
 **For DETAILED docs and Codebase References check:**
 - **Backend:** [@backend/](SDK/backend/) - the uAgents service handling personality generation and conversation handling with evaluation powered by ASI:ONE
-- **BlockScout Agent:** [@BlockscoutAgent/](SDK/BlockscoutAgent/) - ASI-powered agent for transaction analysis using BlockScout MCP
-- **Metrics Generation:** [@metricsgen/](SDK/metricsgen/) - ASI Agent for comprehensive performance analysis and metrics generation
+- **BlockScout Agent:** [@BlockscoutAgent/](SDK/backend/BlockscoutAgent/) - ASI-powered agent for transaction analysis using BlockScout MCP
+- **Metrics Generation:** [@MetricsGenAgent/](SDK/backend/MetricsGenAgent/) - ASI Agent for comprehensive performance analysis and metrics generation
 
 ## How BlockScout is Used
 
@@ -92,7 +92,7 @@ BlockScout's MCP server is integral to fireGlobe's transaction analysis capabili
 **Critical Role:** BlockScout's MCP server has been crucial in enabling the development of a product that genuinely assists developers in evaluating their agents' performance. Without this comprehensive transaction data, thorough on-chain agent testing would not be possible.
 
 **Codebase Reference:**
-- **BlockScout Agent:** [@BlockscoutAgent/](SDK/BlockscoutAgent/) - Contains the ASI-powered agent that interfaces with BlockScout MCP server for transaction analysis
+- **BlockScout Agent:** [@BlockscoutAgent/](SDK/backend/BlockscoutAgent/) - Contains the ASI-powered agent that interfaces with BlockScout MCP server for transaction analysis
 
 ## How Lighthouse is Used
 
@@ -116,5 +116,5 @@ Lighthouse, with its incentivized storage, fuels data availability market compet
 - [Sample metrics Data in lighthouse.storage (click here)](https://gateway.lighthouse.storage/ipfs/QmW8GJhb1LscVDVG5xsun4hLfU19wwsEgpM1b7CjRq8NwG)
 
 **Codebase Reference:**
-- **Database + Rewards Server:** [@db-server/](SDK/db-server/) - Node.js service handling storage and Lighthouse IPFS uploads and FGC datacoin minting for the tester
+- **Database + Rewards Server:** [@db-server/](SDK/backend/db-server/) - Node.js service handling storage and Lighthouse IPFS uploads and FGC datacoin minting for the tester
 
