@@ -145,9 +145,15 @@ class ConversationKnowledgeGraph:
         
         # Store raw data separately for easier access
         if raw_data:
+            print(f"[KG] Raw data type: {type(raw_data)}")
+            print(f"[KG] Raw data keys: {list(raw_data.keys()) if isinstance(raw_data, dict) else 'Not a dict'}")
+            print(f"[KG] ========== STORING RAW DATA IN KG ==========")
+            print(f"[KG] {json.dumps(raw_data, indent=2)}")
+            print(f"[KG] ========== END RAW DATA STORAGE ==========")
+            
             raw_data_json = json.dumps(raw_data)
             self.metta.space().add_atom(E(S("transaction_raw_data"), S(tx_id), ValueAtom(raw_data_json)))
-            print(f"[KG] Stored raw transaction data for tx: {tx_id}")
+            print(f"[KG] ✅ Stored raw transaction data for tx: {tx_id}")
         
         return f"Successfully added BlockScout analysis for transaction: {transaction_hash}"
     
@@ -762,7 +768,11 @@ async def get_transaction_raw_data_from_blockscout(tx_hash: str, chain_id: str =
                         print(f"[BLOCKSCOUT-AGENT] ✅ Raw transaction data found")
                         print(f"[BLOCKSCOUT-AGENT] Data type: {type(raw_data)}")
                         print(f"[BLOCKSCOUT-AGENT] Data keys: {list(raw_data.keys()) if isinstance(raw_data, dict) else 'Not a dict'}")
-                        print(f"[BLOCKSCOUT-AGENT] Data preview: {str(raw_data)[:500]}...")
+                        
+                        # LOG THE COMPLETE RAW DATA
+                        print(f"[BLOCKSCOUT-AGENT] ========== COMPLETE RAW TRANSACTION DATA ==========")
+                        print(f"[BLOCKSCOUT-AGENT] {json.dumps(raw_data, indent=2)}")
+                        print(f"[BLOCKSCOUT-AGENT] ========== END RAW TRANSACTION DATA ==========")
                         
                         # Also check if there's an analysis
                         if result.get("analysis"):
@@ -833,6 +843,11 @@ async def auto_fetch_missing_raw_data(ctx: Context, transactions: List[Dict[str,
                     print(f"[AUTO-FETCH] Raw data type: {type(raw_data)}")
                     print(f"[AUTO-FETCH] Raw data keys: {list(raw_data.keys()) if isinstance(raw_data, dict) else 'Not a dict'}")
                     
+                    # LOG THE COMPLETE RAW DATA IN AUTO-FETCH
+                    print(f"[AUTO-FETCH] ========== COMPLETE RAW DATA FOR {tx_hash} ==========")
+                    print(f"[AUTO-FETCH] {json.dumps(raw_data, indent=2)}")
+                    print(f"[AUTO-FETCH] ========== END RAW DATA ==========")
+                    
                     # Store raw data in the transaction
                     tx['raw_data'] = raw_data
                     print(f"[AUTO-FETCH] ✅ Stored raw_data in transaction object")
@@ -840,6 +855,11 @@ async def auto_fetch_missing_raw_data(ctx: Context, transactions: List[Dict[str,
                     # Store in Knowledge Graph
                     try:
                         print(f"[AUTO-FETCH] 🔄 Storing in Knowledge Graph...")
+                        print(f"[AUTO-FETCH] KG Storage - Transaction Hash: {tx_hash}")
+                        print(f"[AUTO-FETCH] KG Storage - Chain ID: {chain_id}")
+                        print(f"[AUTO-FETCH] KG Storage - Raw Data Type: {type(raw_data)}")
+                        print(f"[AUTO-FETCH] KG Storage - Raw Data Keys: {list(raw_data.keys()) if isinstance(raw_data, dict) else 'Not a dict'}")
+                        
                         kg_result = conversation_kg.add_blockscout_analysis(
                             transaction_hash=tx_hash,
                             conversation_id="auto_fetch",  # Use a placeholder conversation ID
@@ -1876,7 +1896,60 @@ async def handle_kg_last_entry(ctx: Context) -> KGLastEntryResponse:
         conversations = test_run_data["conversations"]
         transactions = test_run_data["transactions"]
         
-        # Create comprehensive response
+        # AUTO-FETCH RAW DATA FOR ALL TRANSACTIONS
+        print(f"\n[LAST-ENTRY] ========== AUTO-FETCHING RAW DATA ==========")
+        print(f"[LAST-ENTRY] Found {len(transactions)} transactions to check for raw data")
+        
+        for i, tx in enumerate(transactions):
+            tx_hash = tx.get('transaction_hash', '')
+            chain_id = tx.get('chain_id', '84532')
+            has_raw_data = tx.get('raw_data') is not None
+            
+            print(f"[LAST-ENTRY] Transaction {i+1}: {tx_hash}")
+            print(f"[LAST-ENTRY]   - Has raw_data: {has_raw_data}")
+            print(f"[LAST-ENTRY]   - Chain ID: {chain_id}")
+            
+            if tx_hash and not has_raw_data:
+                print(f"[LAST-ENTRY] 🔄 Fetching raw data for {tx_hash}...")
+                
+                try:
+                    # Call the fetch raw data function directly
+                    print(f"[LAST-ENTRY] 🔄 Calling get_transaction_raw_data_from_blockscout for {tx_hash}...")
+                    raw_data = await get_transaction_raw_data_from_blockscout(tx_hash, chain_id)
+                    
+                    if raw_data:
+                        # Update the transaction with raw data
+                        tx['raw_data'] = raw_data
+                        print(f"[LAST-ENTRY] ✅ Successfully fetched raw data for {tx_hash}")
+                        print(f"[LAST-ENTRY] Raw data keys: {list(raw_data.keys()) if isinstance(raw_data, dict) else 'Not a dict'}")
+                        
+                        # Also store in Knowledge Graph
+                        try:
+                            print(f"[LAST-ENTRY] 🔄 Storing raw data in Knowledge Graph...")
+                            kg_result = conversation_kg.add_blockscout_analysis(
+                                transaction_hash=tx_hash,
+                                conversation_id="auto_fetch_last_entry",  # Use a placeholder conversation ID
+                                analysis="Raw data auto-fetched from last-entry",
+                                timestamp=datetime.utcnow().isoformat(),
+                                chain_id=chain_id,
+                                raw_data=raw_data
+                            )
+                            print(f"[LAST-ENTRY] ✅ Stored raw data in KG: {kg_result}")
+                        except Exception as kg_error:
+                            print(f"[LAST-ENTRY] ❌ Failed to store in KG: {kg_error}")
+                    else:
+                        print(f"[LAST-ENTRY] ❌ No raw data returned for {tx_hash}")
+                            
+                except Exception as e:
+                    print(f"[LAST-ENTRY] ❌ Exception fetching raw data for {tx_hash}: {e}")
+                    import traceback
+                    print(f"[LAST-ENTRY] Traceback: {traceback.format_exc()}")
+            else:
+                print(f"[LAST-ENTRY] ✅ Transaction {tx_hash} already has raw data")
+        
+        print(f"[LAST-ENTRY] ========== AUTO-FETCH COMPLETED ==========\n")
+        
+        # Create comprehensive response with updated transactions
         comprehensive_entry = {
             "conversations": conversations,
             "transactions": transactions,
@@ -1891,6 +1964,11 @@ async def handle_kg_last_entry(ctx: Context) -> KGLastEntryResponse:
         print(f"[LAST-ENTRY] Total conversations: {len(conversations)}")
         print(f"[LAST-ENTRY] Total transactions: {len(transactions)}")
         print(f"[LAST-ENTRY] Personalities: {test_run_data['metadata']['personalities']}")
+        
+        # Count transactions with raw data
+        transactions_with_raw_data = sum(1 for tx in transactions if tx.get('raw_data') is not None)
+        print(f"[LAST-ENTRY] Transactions with raw data: {transactions_with_raw_data}/{len(transactions)}")
+        
         print(f"[LAST-ENTRY] ========== RETURNING RESPONSE ==========\n")
         
         return KGLastEntryResponse(
@@ -1898,7 +1976,7 @@ async def handle_kg_last_entry(ctx: Context) -> KGLastEntryResponse:
             entry_type="comprehensive_test_run",
             entry=comprehensive_entry,
             timestamp=test_run_data["metadata"]["created_at"],
-            message=f"Retrieved comprehensive test run data with {len(conversations)} conversations from {len(test_run_data['metadata']['personalities'])} personalities and {len(transactions)} transactions"
+            message=f"Retrieved comprehensive test run data with {len(conversations)} conversations from {len(test_run_data['metadata']['personalities'])} personalities and {len(transactions)} transactions. Raw data fetched for {transactions_with_raw_data}/{len(transactions)} transactions."
         )
     
     except Exception as e:
@@ -1957,7 +2035,11 @@ async def handle_test_blockscout_agent(ctx: Context, req: Model) -> Model:
             print(f"[TEST-BLOCKSCOUT] ✅ Successfully fetched raw data!")
             print(f"[TEST-BLOCKSCOUT] Raw data type: {type(raw_data)}")
             print(f"[TEST-BLOCKSCOUT] Raw data keys: {list(raw_data.keys()) if isinstance(raw_data, dict) else 'Not a dict'}")
-            print(f"[TEST-BLOCKSCOUT] Raw data preview: {str(raw_data)[:500]}...")
+            
+            # LOG THE COMPLETE RAW DATA IN TEST
+            print(f"[TEST-BLOCKSCOUT] ========== COMPLETE RAW DATA ==========")
+            print(f"[TEST-BLOCKSCOUT] {json.dumps(raw_data, indent=2)}")
+            print(f"[TEST-BLOCKSCOUT] ========== END RAW DATA ==========")
             
             return Model(
                 success=True,
