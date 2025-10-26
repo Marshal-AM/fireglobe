@@ -1,5 +1,5 @@
 /**
- * Core types for CDP Agent Tester SDK
+ * Core types for FireGlobe Agent Testing SDK
  */
 
 /**
