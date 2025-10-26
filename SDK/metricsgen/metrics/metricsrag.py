@@ -43,16 +43,27 @@ class MetricsRAG:
                     print(f"📊 Total transactions: {len(transactions)}")
                     print(f"📊 Personalities: {entry.get('personalities', [])}")
                     
-                    # Return the first conversation if available, or create a combined structure
+                    # Return the full comprehensive test run data for complete analysis
                     if conversations:
-                        first_conversation = conversations[0]
-                        # Add all transactions to the first conversation for comprehensive analysis
-                        first_conversation['all_transactions'] = transactions
-                        print(f"✅ Using first conversation: {first_conversation.get('conversation_id')}")
-                        print(f"📊 Messages: {len(first_conversation.get('messages', []))}")
-                        print(f"📊 Transactions: {len(first_conversation.get('transactions', []))}")
+                        # Create a comprehensive structure with all conversations and transactions
+                        comprehensive_data = {
+                            'test_run_id': entry.get('test_run_id'),
+                            'test_run_timestamp': entry.get('test_run_timestamp'),
+                            'personalities': entry.get('personalities', []),
+                            'total_conversations': len(conversations),
+                            'total_transactions': len(transactions),
+                            'conversations': conversations,
+                            'all_transactions': transactions,
+                            'conversation_id': f"comprehensive_test_run_{entry.get('test_run_id', 'unknown')}"
+                        }
+                        
+                        print(f"✅ Created comprehensive data structure")
+                        print(f"📊 Test Run ID: {comprehensive_data.get('test_run_id')}")
+                        print(f"📊 Conversations: {len(conversations)}")
                         print(f"📊 All transactions: {len(transactions)}")
-                        return first_conversation
+                        print(f"📊 Personalities: {comprehensive_data.get('personalities')}")
+                        
+                        return comprehensive_data
                     else:
                         print(f"❌ No conversations found in test run")
                 elif data.get('success') and data.get('entry_type') == 'conversation':
