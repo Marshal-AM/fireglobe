@@ -190,7 +190,7 @@ export class ConversationLogger {
 </head>
 <body>
     <div class="header">
-        <h1>CDP Agent Test Results</h1>
+        <h1>FireGlobe Agent Test Results</h1>
         <div class="score">${results.overallScore}/100</div>
         <p><strong>Agent:</strong> ${results.agentDescription}</p>
         <p><strong>Test ID:</strong> ${results.testId}</p>
