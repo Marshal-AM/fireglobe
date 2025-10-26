@@ -97,28 +97,55 @@ def analyze_action_types(messages: List[Dict[str, Any]], transactions: List[Dict
 
 
 def extract_gas_data(transactions: List[Dict[str, Any]]) -> List[int]:
-    """Extract gas usage data from transaction analyses."""
+    """Extract gas usage data from transaction analyses and raw data."""
     gas_values = []
     
     for tx in transactions:
-        analysis = tx.get('analysis', '')
-        # Try to extract gas values from analysis text
-        import re
-        gas_patterns = [
-            r'(\d+(?:,\d+)*)\s*(?:gas|units)',
-            r'gas\s*used:?\s*(\d+(?:,\d+)*)',
-            r'(\d+(?:,\d+)*)\s*gwei'
-        ]
-        
-        for pattern in gas_patterns:
-            matches = re.findall(pattern, analysis.lower())
-            for match in matches:
+        # First try to get gas from raw data (preferred)
+        raw_data = tx.get('raw_data')
+        if raw_data and isinstance(raw_data, dict):
+            # Extract gas from raw transaction data
+            gas_used = raw_data.get('gas_used')
+            if gas_used:
                 try:
-                    gas_value = int(match.replace(',', ''))
+                    gas_value = int(gas_used)
                     if 1000 < gas_value < 10000000:  # Reasonable gas range
                         gas_values.append(gas_value)
-                except ValueError:
-                    continue
+                        continue  # Skip text analysis if we got gas from raw data
+                except (ValueError, TypeError):
+                    pass
+            
+            # Also try alternative gas fields
+            for gas_field in ['gas', 'gasLimit', 'gas_limit']:
+                gas_value = raw_data.get(gas_field)
+                if gas_value:
+                    try:
+                        gas_value = int(gas_value)
+                        if 1000 < gas_value < 10000000:
+                            gas_values.append(gas_value)
+                            break
+                    except (ValueError, TypeError):
+                        continue
+        
+        # Fallback to text analysis if no raw data available
+        analysis = tx.get('analysis', '')
+        if analysis:
+            import re
+            gas_patterns = [
+                r'(\d+(?:,\d+)*)\s*(?:gas|units)',
+                r'gas\s*used:?\s*(\d+(?:,\d+)*)',
+                r'(\d+(?:,\d+)*)\s*gwei'
+            ]
+            
+            for pattern in gas_patterns:
+                matches = re.findall(pattern, analysis.lower())
+                for match in matches:
+                    try:
+                        gas_value = int(match.replace(',', ''))
+                        if 1000 < gas_value < 10000000:  # Reasonable gas range
+                            gas_values.append(gas_value)
+                    except ValueError:
+                        continue
     
     return gas_values
 
@@ -130,7 +157,26 @@ def calculate_success_rate(messages: List[Dict[str, Any]], transactions: List[Di
     if total_actions == 0:
         return 0.0
     
-    successful_actions = sum(1 for tx in transactions if tx.get('success', True))
+    successful_actions = 0
+    
+    for tx in transactions:
+        # Check raw data first for transaction status
+        raw_data = tx.get('raw_data')
+        if raw_data and isinstance(raw_data, dict):
+            # Check transaction status from raw data
+            status = raw_data.get('status', '').lower()
+            if status in ['ok', 'success', '1']:
+                successful_actions += 1
+            elif status in ['failed', 'error', '0']:
+                continue  # Failed transaction
+            else:
+                # If no clear status, check success field
+                if tx.get('success', True):
+                    successful_actions += 1
+        else:
+            # Fallback to success field if no raw data
+            if tx.get('success', True):
+                successful_actions += 1
     
     # If no transactions, analyze message content for failures
     if len(transactions) == 0:
@@ -176,4 +222,3 @@ def clean_json_response(response: str) -> str:
         cleaned = cleaned[:-3]
     
     return cleaned.strip()
-
