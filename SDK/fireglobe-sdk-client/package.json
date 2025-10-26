@@ -1,10 +1,10 @@
 {
   "name": "fireglobe-sdk-client",
-  "version": "1.6.2",
-  "description": "Universal testing SDK for CDP AgentKit agents using AI-generated personalities with comprehensive metrics generation. Test any agent with 10 AI personalities - no backend setup required! Features automatic transaction detection, real-time BlockscoutAgent analysis, intelligent conversation flow, deployed backend integration, and deployed Metrics Generator with comprehensive performance metrics.",
+  "version": "1.6.15",
+  "description": "Universal testing SDK for blockchain agents using AI-generated personalities with comprehensive metrics generation. Test any agent with 10 multiple personalities - no backend setup required! Features automatic transaction detection, real-time BlockscoutAgent analysis, intelligent conversation flow, deployed backend integration, and deployed Metrics Generator with comprehensive performance metrics.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "homepage": "https://github.com/yourusername/cdp-agent-tester-sdk#readme",
+  "homepage": "https://fireglobe.vercel.app/",
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -14,9 +14,10 @@
     "format": "prettier --write \"src/**/*.ts\""
   },
   "keywords": [
-    "cdp",
     "agentkit",
     "testing",
+    "langchain",
+    "asi",
     "ai",
     "blockchain",
     "personality-testing",
@@ -30,14 +31,14 @@
     "blockscout",
     "real-time-analysis"
   ],
-  "author": "CDP AgentKit Team",
+  "author": "FireGlobe Team",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/cdp-agent-tester-sdk.git"
+    "url": "git+https://github.com/Marshal-AM/fireglobe.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/cdp-agent-tester-sdk/issues"
+    "url": "https://github.com/Marshal-AM/fireglobe/issues"
   },
   "dependencies": {
     "axios": "^1.6.0",

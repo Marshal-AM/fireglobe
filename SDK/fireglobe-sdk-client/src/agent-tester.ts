@@ -28,7 +28,7 @@ export class AgentTester {
     // Validate required access token
     if (!config.accessToken || config.accessToken.trim() === '') {
       throw new Error(
-        '❌ ACCESS TOKEN REQUIRED: CDP Agent Tester requires an access token to function.\n' 
+        '❌ ACCESS TOKEN REQUIRED: FireGlobe Agent Tester requires an access token to function.\n' 
 
       );
     }
@@ -86,6 +86,11 @@ export class AgentTester {
     const testId = uuidv4();
     const startTime = new Date();
 
+    // Generate a single test run ID for ALL conversations in this test run
+    const testRunId = `test_run_${testId}`;
+    console.log(`\n🎯 TEST RUN ID: ${testRunId}`);
+    console.log(`📊 This ID will be used for ALL conversations in this test run\n`);
+
     this.emit({ type: "test_started", testId, timestamp: startTime });
 
     try {
@@ -103,17 +108,33 @@ export class AgentTester {
 
       // Step 2: Run conversations with each personality
       const conversations: Conversation[] = [];
-      for (const personality of personalities) {
+      for (let i = 0; i < personalities.length; i++) {
+        const personality = personalities[i];
+        console.log(`\n${'='.repeat(80)}`);
+        console.log(`🎭 STARTING CONVERSATION ${i + 1}/${personalities.length}`);
+        console.log(`👤 Personality: ${personality.name}`);
+        console.log(`${'='.repeat(80)}\n`);
+        
         try {
-          const conversation = await this.runConversation(agent, personality);
+          console.log(`🔄 STARTING runConversation for personality ${i + 1}/${personalities.length}`);
+          const conversation = await this.runConversation(agent, personality, testRunId);
           conversations.push(conversation);
+          console.log(`\n✅ CONVERSATION ${i + 1} COMPLETED AND STORED`);
+          console.log(`📝 Personality: ${personality.name}`);
+          console.log(`💬 Messages: ${conversation.messages.length}`);
+          console.log(`📊 Status: ${conversation.status}\n`);
         } catch (error) {
+          console.error(`\n❌ CONVERSATION ${i + 1} FAILED`);
+          console.error(`👤 Personality: ${personality.name}`);
+          console.error(`💥 Error: ${error}`);
+          console.error(`📋 Error details:`, error);
           this.emit({
             type: "error",
             error: `Failed conversation with ${personality.name}: ${error}`,
             context: personality.name,
           });
           // Continue with next personality
+          console.log(`⏭️  Continuing to next personality...\n`);
         }
       }
 
@@ -185,7 +206,8 @@ export class AgentTester {
    */
   private async runConversation(
     agent: IUniversalAgent,
-    personality: Personality
+    personality: Personality,
+    testRunId: string
   ): Promise<Conversation> {
     const conversationId = uuidv4();
     const conversation: Conversation = {
@@ -335,12 +357,26 @@ export class AgentTester {
       conversation.endTime = new Date();
       conversation.status = "completed";
 
-      // Store conversation in backend
-      await this.backendClient.storeConversation(
-        conversationId,
-        personality.name,
-        conversation.messages
-      );
+      // Store conversation in backend using test run ID
+      console.log(`\n💾 STORING CONVERSATION IN BACKEND`);
+      console.log(`🎯 Test Run ID: ${testRunId}`);
+      console.log(`📝 Conversation ID: ${conversationId}`);
+      console.log(`👤 Personality: ${personality.name}`);
+      console.log(`💬 Messages: ${conversation.messages.length}`);
+      
+      try {
+        console.log(`🚀 CALLING backendClient.storeConversation...`);
+        await this.backendClient.storeConversation(
+          testRunId,  // Use test run ID instead of individual conversation ID
+          personality.name,
+          conversation.messages
+        );
+        console.log(`✅ CONVERSATION STORED SUCCESSFULLY\n`);
+      } catch (error) {
+        console.error(`❌ FAILED TO STORE CONVERSATION: ${error}`);
+        console.error(`📋 Error details:`, error);
+        throw error; // Re-throw to trigger the catch block in the main loop
+      }
 
       // Generate metrics for this conversation
       console.log(`\n📊 Generating performance metrics for conversation ${conversationId}...`);

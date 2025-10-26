@@ -1,207 +1,76 @@
-# fireGlobe
+# FireGlobe Agent Testing SDK
 
-A comprehensive testing framework for on-chain agents that evaluates DeFi capabilities using AI-generated personalities, real-time transaction analysis, and comprehensive performance metrics.
+Universal testing framework for blockchain agents using AI-generated personalities
 
-## 🏗️ How the SDK Works
+## Overview
 
-### Core Architecture
+FireGlobe SDK is a comprehensive testing framework designed to rigorously evaluate AI agents using diverse AI-generated personas powered by ASI:One. The framework generates multiple distinct test personalities that simulate realistic user behaviors and edge cases, providing thorough testing beyond traditional evaluation methods.
 
-fireGlobe is built on a distributed architecture with multiple specialized components working together to provide comprehensive agent testing:
+## Features
 
-#### 1. **SDK Client** (`/SDK/cdp-agent-tester-sdk/`)
-- **TypeScript library** that provides the main interface for agent integration
-- Implements the `IUniversalAgent` interface for framework-agnostic testing
-- Handles real-time conversation orchestration and event emission
-- Manages transaction detection and analysis requests
-- Provides adapters for popular agent frameworks (currently CDP AgentKit)
+- **Universal Agent Interface**: Test any agent regardless of framework (LangChain, OpenAI SDK, Custom, etc.)
+- **AI-Powered Personalities**: Generate unique test personalities tailored to your agent
+- **Automated Conversations**: Each personality engages in natural conversations with your agent
+- **AI Evaluation**: Advanced AI evaluation using ASI:One for comprehensive performance assessment
+- **Real-Time Logging**: Watch conversations unfold in real-time
+- **Comprehensive Reports**: Get detailed HTML and JSON reports
+- **Framework Agnostic**: Works with any agent that implements the simple interface
+- **Blockchain Transaction Analysis**: Integrates with BlockScout MCP for transaction analysis
 
-#### 2. **Backend Agent** (`/SDK/backend/server.py`)
-- **ASI uAgents service** powered by ASI:One AI
-- Generates 5-10 unique test personalities tailored to agent capabilities
-- Creates context-aware conversation messages using conversation history
-- Evaluates agent performance across multiple criteria using AI analysis
-- Manages Knowledge Graph storage using MeTTa for conversation and transaction data
-- Implements A2A (Agent-to-Agent) communication with BlockscoutAgent
+## Installation
 
-#### 3. **BlockscoutAgent** (`/SDK/BlockscoutAgent/main.py`)
-- **Specialized transaction analysis agent** using BlockScout MCP
-- Fetches detailed transaction data from multiple blockchain networks
-- Provides AI-powered transaction analysis using ASI:One
-- Creates conversation-aware analysis that considers user personality and context
-- Supports Base Sepolia, Ethereum, Polygon, Arbitrum, and Optimism networks
-
-#### 4. **Database Server** (`/SDK/db-server/server.js`)
-- **Node.js service** for data persistence and IPFS integration
-- Validates user access tokens and manages user sessions
-- Uploads Knowledge Graph and metrics data to Lighthouse IPFS
-- Stores test run metadata in Supabase database
-- Implements FGC token rewards system for completed test runs
-
-#### 5. **Metrics Generator** (`/SDK/metricsgen/agent.py`)
-- **Python service** for comprehensive performance analysis
-- Calculates capability, efficiency, reliability, interaction, and DeFi reasoning metrics
-- Generates AI-powered improvement recommendations
-- Provides detailed performance insights and scoring
-
-### Communication Flow
-
-```
-Agent Code → SDK Client → Backend Agent → BlockscoutAgent → BlockScout MCP
-     ↓              ↓           ↓              ↓
-Event Listeners → Real-time → Knowledge → Transaction
-     ↓              ↓           ↓         Analysis
-Local Storage ← Results ← Graph Storage ← AI Analysis
-     ↓
-Database Server → IPFS → Supabase → User Dashboard
-```
-
-## 🔧 Backend Implementation Details
-
-### ASI:One AI Integration
-
-The backend leverages ASI:One AI for multiple critical functions:
-
-#### **Personality Generation**
-```python
-# Generates tailored test personalities based on agent capabilities
-prompt = f"""Generate {num_personalities} personalities that will test:
-- Agent Description: {agent_description}
-- Agent Capabilities: {agent_capabilities}
-- Focus: Base Sepolia testnet operations with existing funds
-- Each personality must make EXACTLY ONE tool call"""
-```
-
-#### **Message Generation**
-```python
-# Creates context-aware conversation messages
-def generate_personality_message(personality, conversation_history, is_initial):
-    if is_initial:
-        # Generate opening message based on personality traits
-    else:
-        # Generate follow-up considering full conversation context
-```
-
-#### **Performance Evaluation**
-```python
-# Evaluates agent performance across multiple criteria
-evaluation_criteria = {
-    "toolUsage": "Did the agent make tool calls?",
-    "balanceAwareness": "Did the agent check balance?",
-    "defiCapability": "Did the agent demonstrate DeFi knowledge?",
-    "responsiveness": "Did the agent respond appropriately?",
-    "baseSepoliaFocus": "Did the agent focus on Base Sepolia?"
-}
-```
-
-### BlockScout Agent Integration
-
-The BlockscoutAgent provides comprehensive transaction analysis:
-
-#### **Transaction Data Fetching**
-```python
-# Uses BlockScout MCP with SSE streaming for real-time data
-async def get_transaction(self, tx_hash: str, chain_id: str):
-    result = await self.call_tool("get_transaction_info", {
-        "chain_id": str(chain_id),
-        "transaction_hash": tx_hash,
-        "include_raw_input": False
-    })
-```
-
-#### **AI-Powered Analysis**
-```python
-# Creates conversation-aware transaction analysis
-async def _create_conversation_aware_analysis(self, conversation_messages, 
-                                            personality_name, tx_hash, tx_data):
-    analysis_prompt = f"""
-    Analyze this transaction in context of:
-    - User Personality: {personality_name}
-    - Conversation: {conversation_text}
-    - Transaction Data: {tx_data}
-    
-    Provide insights tailored to their goals and personality.
-    """
-```
-
-## 💾 Database Server & Lighthouse Integration
-
-### IPFS Storage Architecture
-
-The database server implements a sophisticated storage system:
-
-#### **Knowledge Graph Upload**
-```javascript
-// Fetches conversation data from backend Knowledge Graph
-const kgUrl = `${BACKEND_URL}/rest/kg/last-entry`;
-const kgData = await axios.get(kgUrl);
-
-// Uploads to Lighthouse IPFS
-const lighthouseResult = await uploadToLighthouse(kgData, `kg_${userId}_${timestamp}`);
-```
-
-#### **Metrics Storage**
-```javascript
-// Fetches comprehensive metrics from Metrics Generator
-const metricsUrl = `${METRICS_URL}/metrics/last`;
-const metricsData = await axios.get(metricsUrl);
-
-// Stores both datasets in Supabase with IPFS references
-const testRun = await storeTestRun(userId, kgHash, metricsHash);
-```
-
-### FGC Token Rewards System
-
-The system automatically rewards users for completed test runs:
-
-```javascript
-// Mints FGC tokens to user's wallet address
-async function mintFgcToAddress(recipientAddress, humanAmount = '1') {
-  const hash = await walletClient.writeContract({
-    address: DATACOIN_ADDRESS,
-    abi: DataCoinAbi,
-    functionName: 'mint',
-    args: [recipientAddress, amount]
-  });
-}
-```
-
-## 🚀 How to Use
-
-To integrate fireGlobe testing into your own agent:
-
-**Step 1:** Install the fireGlobe SDK:
 ```bash
 npm install fireglobe-sdk-client
 ```
 
-**Step 2:** Import the required components:
-```typescript
-import { AgentTester, CDPAgentKitAdapter } from "fireglobe-sdk-client";
+## Quick Start
+
+### 1. Install the SDK
+
+```bash
+npm install fireglobe-sdk-client
 ```
 
-**Step 3:** Wrap your existing agent with the adapter:
+### 2. Implement the Universal Agent Interface
+
+Any agent must implement the `IUniversalAgent` interface:
+
 ```typescript
-const adapter = new CDPAgentKitAdapter({
-  agent: yourAgentKitAgent,
-  config: yourAgentConfig,
-  metadata: {
-    name: "Your Agent Name",
-    description: "Description of your agent's capabilities",
-    version: "1.0.0"
+import { IUniversalAgent } from "fireglobe-sdk-client";
+
+class MyAgent implements IUniversalAgent {
+  async sendMessage(message: string): Promise<string> {
+    // Your agent logic here
+    return "Agent response";
   }
-});
+
+  async reset(): Promise<void> {
+    // Reset conversation state
+  }
+
+  getMetadata?() {
+    return {
+      name: "My Agent",
+      description: "Description of what your agent does",
+      framework: "YourFramework",
+      version: "1.0.0"
+    };
+  }
+}
 ```
 
-**Step 4:** Configure and run the tester:
+### 3. Get Your Access Token
+
+Sign up at [fireglobe.vercel.app](https://fireglobe.vercel.app) to get your access token and add it to your .env
+
+### 4. Run Tests
+
 ```typescript
+import { AgentTester } from "fireglobe-sdk-client";
+
 const tester = new AgentTester({
-  agentDescription: "Your agent description",
-  agentCapabilities: "List of what your agent can do",
-  accessToken: process.env.ACCESS_TOKEN!, // Required
-  numPersonalities: 5, // Number of test personalities
-  maxMessagesPerConversation: 10,
-  saveConversations: true,
-  realTimeLogging: true
+  accessToken: process.env.ACCESS_TOKEN!, // Get from fireglobe.vercel.app
+  agentDescription: "A DeFi agent that helps users with lending and borrowing"
 });
 
 // Add event listeners for real-time updates
@@ -210,46 +79,271 @@ tester.on((event) => {
 });
 
 // Run tests
-const results = await tester.runTests(adapter);
+const results = await tester.runTests(myAgent);
+
 console.log(`Overall Score: ${results.overallScore}/100`);
 ```
 
-**Step 5:** View results at [fireglobe.vercel.app](https://fireglobe.vercel.app) using your access token.
+## LangChain Integration
 
-## 🗺️ What's Next / Roadmap
+We provide a ready-made adapter for LangChain-based agents:
 
-### Upcoming Features
+```typescript
+import { AgentTester, LangChainAdapter } from "fireglobe-sdk-client";
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
 
-- **Expanded Agent Framework Support**: We're actively developing adapters for popular agent frameworks including:
-  - **OpenAI Agents SDK** - Direct integration with OpenAI's agent framework
-  - **LangChain Agents** - Enhanced support for various LangChain agent types
-  - **AutoGen** - Multi-agent conversation testing
-  - **CrewAI** - Collaborative agent testing
-  - **Custom Framework Adapters** - Easy integration for any agent framework
+// Your existing LangChain setup
+const agent = createReactAgent({ llm, tools, checkpointSaver: memory });
+const config = { configurable: { thread_id: "test" } };
 
-- **Enhanced Testing Capabilities**:
-  - Multi-agent conversation testing
-  - Cross-chain transaction analysis
-  - Advanced DeFi protocol testing
-  - Performance benchmarking across different networks
+// Wrap with adapter
+const adapter = new LangChainAdapter({
+  agent,
+  config,
+  metadata: {
+    name: "My FireGlobe Agent",
+    description: "DeFi operations on Base",
+    version: "1.0.0"
+  }
+});
 
-- **Developer Experience Improvements**:
-  - Visual test result dashboard
-  - CI/CD integration tools
-  - Automated regression testing
-  - Performance monitoring and alerting
+// Run tests
+const tester = new AgentTester({
+  agentDescription: "A DeFi agent built with FireGlobe"
+});
 
-### Vision
+const results = await tester.runTests(adapter);
+```
 
-Our goal is to become the **standard for on-chain agent testing**, providing comprehensive evaluation tools that work across all major agent frameworks. We believe that robust testing is essential for the future of autonomous on-chain agents.
+## API Reference
 
-### Adapter Contributions Welcome
+### AgentTester
+
+Main class for orchestrating tests.
+
+#### Constructor Options
+
+```typescript
+interface TestConfig {
+  accessToken: string;                 
+  agentDescription: string;           // Description of your agent
+  maxMessagesPerConversation?: number; // Default: 10
+  saveConversations?: boolean;         // Default: true
+  conversationOutputPath?: string;     // Default: "./conversations"
+  realTimeLogging?: boolean;           // Default: true
+}
+```
+
+#### Methods
+
+- `runTests(agent: IUniversalAgent): Promise<TestResults>` - Run complete test suite
+- `on(listener: EventListener): void` - Add event listener for real-time updates
+
+### IUniversalAgent Interface
+
+```typescript
+interface IUniversalAgent {
+  sendMessage(message: string): Promise<string>;
+  reset(): Promise<void>;
+  getMetadata?(): {
+    name: string;
+    description: string;
+    framework: string;
+    version: string;
+  };
+  cleanup?(): Promise<void>;
+}
+```
+
+### LangChainAdapter
+
+Adapter for LangChain-based agents.
+
+```typescript
+const adapter = new LangChainAdapter({
+  agent: langchainAgent,
+  config: agentConfig,
+  metadata: { /* ... */ }
+});
+```
+
+### Test Results
+
+```typescript
+interface TestResults {
+  testId: string;
+  agentDescription: string;
+  personalities: Personality[];
+  conversations: Conversation[];
+  evaluations: EvaluationResult[];
+  startTime: Date;
+  endTime: Date;
+  overallScore: number;  // 0-100
+  summary: {
+    totalConversations: number;
+    successfulConversations: number;
+    failedConversations: number;
+    averageScore: number;
+    topStrengths: string[];
+    topWeaknesses: string[];
+  };
+}
+```
+
+## Events
+
+The SDK emits real-time events during testing:
+
+```typescript
+type TestEvent =
+  | { type: "test_started"; testId: string; timestamp: Date }
+  | { type: "personalities_generated"; count: number; personalities: Personality[] }
+  | { type: "conversation_started"; conversationId: string; personalityName: string }
+  | { type: "message_sent"; conversationId: string; role: "user" | "agent"; content: string }
+  | { type: "conversation_completed"; conversationId: string }
+  | { type: "evaluation_completed"; conversationId: string; score: number }
+  | { type: "test_completed"; results: TestResults }
+  | { type: "error"; error: string; context?: string };
+```
+
+## Output Formats
+
+### JSON Results
+
+Saved to: `./test-results/test_results_TIMESTAMP.json`
+
+Contains complete test data including all conversations and evaluations.
+
+### HTML Report
+
+Interactive HTML report with:
+- Overall score and summary
+- All conversations with each personality
+- Individual evaluation scores
+- Strengths and weaknesses analysis
+- Color-coded messages
+
+### Real-Time Logs
+
+Each conversation is logged in real-time to:
+`./test-results/conversation_ID.jsonl`
+
+## How ASI:One is Used
+
+ASI:One (Artificial Superintelligence Alliance) serves as the core AI reasoning engine that powers FireGlobe's intelligent testing capabilities:
+
+### Personality Generation
+ASI:One generates diverse, contextually appropriate test personas that challenge agents with realistic DeFi scenarios. Each personality is tailored to test specific aspects of your agent's capabilities:
+
+- **Trading Knowledge Seekers**: Test market analysis and trading strategy capabilities
+- **Risk-Averse Users**: Evaluate safety measures and conservative approaches
+- **DeFi Enthusiasts**: Test advanced protocol interactions and complex operations
+- **Novice Users**: Assess educational capabilities and user guidance
+
+### Conversation Evaluation
+ASI:One provides sophisticated evaluation of agent performance across multiple dimensions:
+
+- **Tool Usage Assessment**: Evaluates how effectively agents use their available tools
+- **DeFi Capability Analysis**: Assesses knowledge of blockchain and DeFi protocols
+- **Response Quality**: Measures relevance, accuracy, and helpfulness of responses
+- **Context Awareness**: Evaluates how well agents understand conversation context
+
+### AI-Powered Insights
+The system generates comprehensive insights including:
+
+- **Strengths Identification**: Highlights areas where your agent excels
+- **Weakness Analysis**: Identifies specific areas for improvement
+- **Performance Scoring**: Provides detailed scoring across multiple criteria
+- **Recommendations**: Offers actionable suggestions for enhancement
+
+### Integration Architecture
+ASI:One integrates seamlessly through the FireGlobe backend:
+
+```typescript
+// The SDK automatically handles ASI:One integration
+const tester = new AgentTester({
+  accessToken: process.env.ACCESS_TOKEN!,
+  agentDescription: "Your agent description"
+});
+
+// ASI:One powers personality generation and evaluation behind the scenes
+const results = await tester.runTests(myAgent);
+```
+
+## How BlockScout is Used
+
+BlockScout MCP (Model Context Protocol) provides comprehensive blockchain transaction analysis capabilities:
+
+### Transaction Data Retrieval
+BlockScout MCP enables real-time access to detailed blockchain transaction data:
+
+- **Multi-Chain Support**: Access data across Ethereum, Base, Optimism, Arbitrum, Polygon, and other networks
+- **Comprehensive Transaction Details**: Gas usage, contract interactions, token transfers, and execution traces
+- **Real-Time Processing**: Immediate analysis of transactions as they occur on-chain
+- **Historical Data Access**: Retrieval of past transaction data for analysis and comparison
+
+### Transaction Analysis Features
+When your agent performs blockchain operations, BlockScout provides:
+
+- **Gas Analysis**: Detailed gas usage patterns and efficiency recommendations
+- **Contract Interaction Analysis**: Explains smart contract calls and their purposes
+- **Token Transfer Detection**: Identifies and explains token movements
+- **Risk Assessment**: Evaluates potential security concerns or anomalies
+- **Transaction Classification**: Identifies transaction types (transfers, swaps, approvals, etc.)
+
+### AI-Enhanced Analysis
+BlockScout data is processed through ASI:One to provide intelligent insights:
+
+- **Context-Aware Analysis**: Links transaction analysis to conversation context
+- **Personality-Based Insights**: Tailors analysis to user personality and goals
+- **Educational Content**: Provides learning opportunities about blockchain concepts
+- **Actionable Recommendations**: Offers specific suggestions for optimization
+
+### Integration Flow
+The BlockScout integration works automatically when your agent performs blockchain operations:
+
+```typescript
+// When your agent executes a blockchain transaction
+const response = await myAgent.sendMessage("Transfer 0.1 ETH to 0x...");
+
+// BlockScout automatically analyzes the transaction
+// Analysis is included in the test results
+const results = await tester.runTests(myAgent);
+console.log(results.transactionAnalyses); // BlockScout analysis results
+```
+
+### Supported Networks
+BlockScout MCP provides comprehensive coverage across major blockchain networks:
+
+- **Ethereum Mainnet (Chain ID: 1)**: Primary Ethereum network
+- **Base Mainnet (Chain ID: 8453)**: Coinbase's Layer 2 solution
+- **Base Sepolia (Chain ID: 84532)**: Base testnet for development
+- **Optimism (Chain ID: 10)**: Optimistic rollup solution
+- **Arbitrum (Chain ID: 42161)**: Arbitrum Layer 2 solution
+- **Polygon (Chain ID: 137)**: Polygon network
+
+## Technical Documentation
+
+For detailed technical implementation documentation:
+
+- **ASI:One Integration**: [ASI Integration Documentation](https://github.com/Marshal-AM/fireglobe/blob/main/SDK/backend/ASI_INTEGRATION_README.md)
+- **BlockScout MCP Integration**: [BlockScout Documentation](https://github.com/Marshal-AM/fireglobe/blob/main/SDK/BlockscoutAgent/BlockScout.md)
+
+## License
+
+MIT
+
+## Vision
+
+Our goal is to become the standard for on-chain agent testing, providing comprehensive evaluation tools that work across all major agent frameworks. We believe that robust testing is essential for the future of autonomous on-chain agents.
+
+## Adapter Contributions Welcome
 
 We encourage the community to contribute adapters for their favorite agent frameworks! See our [CONTRIBUTING.md](https://github.com/Marshal-AM/fireglobe/blob/main/SDK/fireglobe-sdk-client/CONTRIBUTING.md) for guidelines on how to contribute.
 
-## 🤝 Contributing
+## Contributing
 
-We welcome contributions to fireGlobe! Here's how you can help:
+We welcome contributions to FireGlobe! Here's how you can help:
 
 ### Types of Contributions
 
@@ -261,12 +355,12 @@ We welcome contributions to fireGlobe! Here's how you can help:
 
 ### Getting Started
 
-1. **Fork the repository**
-2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
-3. **Make your changes** and add tests if applicable
-4. **Commit your changes**: `git commit -m 'Add amazing feature'`
-5. **Push to the branch**: `git push origin feature/amazing-feature`
-6. **Open a Pull Request**
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Make your changes and add tests if applicable
+4. Commit your changes: `git commit -m 'Add amazing feature'`
+5. Push to the branch: `git push origin feature/amazing-feature`
+6. Open a Pull Request
 
 ### Development Setup
 
@@ -279,7 +373,7 @@ We welcome contributions to fireGlobe! Here's how you can help:
 2. **Install dependencies**:
    ```bash
    # SDK
-   cd SDK/firegllobe-sdk-client
+   cd SDK/cdp-agent-tester-sdk
    npm install
    
    # Backend
@@ -296,7 +390,7 @@ We welcome contributions to fireGlobe! Here's how you can help:
 4. **Run tests**:
    ```bash
    # SDK tests
-   cd SDK/fireglobe-sdk-client
+   cd SDK/cdp-agent-tester-sdk
    npm test
    
    # Backend tests
@@ -308,8 +402,8 @@ We welcome contributions to fireGlobe! Here's how you can help:
 
 To create an adapter for a new agent framework:
 
-1. **Study existing adapters** in `/SDK/fireglobe-sdk-client/src/adapters/`
-2. **Implement the `IUniversalAgent` interface**:
+1. **Study existing adapters** in `/SDK/cdp-agent-tester-sdk/src/adapters/`
+2. **Implement the IUniversalAgent interface**:
    ```typescript
    export class YourFrameworkAdapter implements IUniversalAgent {
      async sendMessage(message: string): Promise<string> {
@@ -330,6 +424,7 @@ To create an adapter for a new agent framework:
      }
    }
    ```
+
 3. **Add tests** for your adapter
 4. **Update documentation** with usage examples
 5. **Submit a Pull Request**
@@ -347,8 +442,9 @@ To create an adapter for a new agent framework:
 - **Discussions**: For questions and community discussions
 - **Discord**: Join our community server (link coming soon)
 
-## 📞 Support
+## Support
 
 - **Documentation**: [fireglobe.vercel.app](https://fireglobe.vercel.app)
 - **Issues**: [GitHub Issues](https://github.com/Marshal-AM/fireglobe/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/Marshal-AM/fireglobe/discussions)
+
