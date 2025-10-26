@@ -1,8 +1,8 @@
-# 🎯 CDP Agent Metrics Generator
+# Fireglobe Metrics Generator
 
-A comprehensive metrics generation agent for CDP Agent testing that analyzes conversations, transactions, and evaluations from the Knowledge Graph to produce detailed performance metrics.
+A comprehensive metrics generation agent for that analyzes conversations, transactions, and evaluations from the Knowledge Graph to produce detailed performance metrics.
 
-## 📋 Overview
+## Overview
 
 This agent generates comprehensive performance metrics based on the specification in `metrics.md`, including:
 
@@ -14,7 +14,7 @@ This agent generates comprehensive performance metrics based on the specificatio
 - **Aggregate Scores**: Overall performance index and category scores
 - **Summary Insights**: Qualitative assessment and improvement recommendations
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 Agent Metrics Generator/
@@ -30,7 +30,7 @@ Agent Metrics Generator/
 └── README.md               # This file
 ```
 
-## 🚀 Setup
+## Setup
 
 ### 1. Install Dependencies
 
@@ -61,7 +61,7 @@ python agent.py
 
 The agent will start on port 8081 and be ready to generate metrics.
 
-## 📡 API Endpoints
+## API Endpoints
 
 ### Generate Metrics
 
@@ -128,7 +128,7 @@ Retrieve the last generated metrics.
 }
 ```
 
-## 🧪 Usage Examples
+## Usage Examples
 
 ### Generate Metrics for Last Test
 
@@ -152,7 +152,7 @@ curl -X POST http://localhost:8081/metrics/generate \
 curl http://localhost:8081/metrics/last
 ```
 
-## 📊 Metrics Explanation
+## Metrics Explanation
 
 ### Capability Metrics
 - **Action Success Rate**: Percentage of successful blockchain operations
@@ -199,26 +199,9 @@ curl http://localhost:8081/metrics/last
 - **DeFi Reasoning Score**: Weighted average of DeFi metrics
 - **Final Performance Index (FPI)**: Overall weighted performance score
 
-## 🐳 Docker Deployment
+## Integration with Testing Flow
 
-### Build Image
-
-```bash
-docker build -t cdp-agent-metrics-generator .
-```
-
-### Run Container
-
-```bash
-docker run -p 8081:8081 \
-  -e ASI_ONE_API_KEY=your_key \
-  -e BACKEND_URL=https://backend-739298578243.us-central1.run.app \
-  cdp-agent-metrics-generator
-```
-
-## 🔧 Integration with Testing Flow
-
-The metrics generator integrates with the CDP Agent testing flow:
+The metrics generator integrates with the Fireglobe Agent testing flow:
 
 1. **Test Execution**: Agent runs tests using personalities
 2. **Data Storage**: Conversations and transactions stored in Knowledge Graph
@@ -226,13 +209,13 @@ The metrics generator integrates with the CDP Agent testing flow:
 4. **Display**: Metrics displayed in terminal with detailed breakdown
 5. **Storage**: Metrics stored back in Knowledge Graph for historical analysis
 
-## 🎯 Terminal Output
+## Terminal Output
 
-When metrics are generated, you'll see a beautiful terminal output with:
+When metrics are generated, you'll see a comprehensive output with:
 
 ```
 ================================================================================
-🎯 CDP AGENT PERFORMANCE METRICS
+🎯 AGENT PERFORMANCE METRICS
 ================================================================================
 
 🆔 Test ID: abc-123-def
@@ -277,7 +260,7 @@ When metrics are generated, you'll see a beautiful terminal output with:
 [... more improvement suggestions ...]
 ```
 
-## 🧠 Technology Stack
+## Technology Stack
 
 - **uAgents Framework**: Agent infrastructure
 - **MeTTa (Hyperon)**: Knowledge Graph for metrics storage
@@ -285,22 +268,8 @@ When metrics are generated, you'll see a beautiful terminal output with:
 - **Python 3.12**: Core runtime
 - **Docker**: Containerization
 
-## 📝 Notes
+## Notes
 
 - The agent uses the same Knowledge Graph structure as the backend
 - Metrics are calculated using both rule-based logic and LLM analysis
-- All metrics follow the specification in `metrics.md`
 - Historical metrics are stored in local MeTTa KG for trend analysis
-
-## 🤝 Contributing
-
-When adding new metrics:
-1. Add calculation function in `agent.py`
-2. Update metric categories as needed
-3. Update terminal display format
-4. Document new metrics in this README
-
-## 📄 License
-
-Part of the CDP Agent Testing SDK
-
