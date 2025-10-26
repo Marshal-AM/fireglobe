@@ -49,7 +49,7 @@ In the FireGlobe Agent Testing Platform, ASI:One serves as the **core AI reasoni
 ```mermaid
 graph TB
     subgraph "FireGlobe Platform"
-        SDK[CDP Agent Tester SDK]
+        SDK[Fireglobe SDK]
         Backend[Backend Server]
         BlockscoutAgent[BlockscoutAgent]
         MetricsGen[Metrics Generator]
