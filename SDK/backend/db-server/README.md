@@ -1,6 +1,28 @@
-# fireGlobe Database Server
+# fireGlobe Database Server with Lighthouse Integration
 
-A comprehensive Node.js server that manages test run data storage, Lighthouse IPFS uploads, and FGC token rewards for the fireGlobe testing platform.
+## How Lighthouse is Used
+
+Lighthouse, with its incentivized storage, fuels data availability market competition. It stands as a more affordable and secure choice compared to cloud storage, ensuring extended data liveness guarantees for participants in the network.
+
+**Decentralized Storage Implementation:** fireGlobe stores **all metrics, conversation logs, and transaction-related data** completely in Lighthouse IPFS storage. This approach ensures data integrity, security, and cost-effectiveness while providing permanent, decentralized storage with a one-time payment model.
+
+**DataAgent Application Alignment:** fireGlobe perfectly aligns with the DataAgent application objectives outlined in the "Best DataAgent" problem statement. We generate substantial synthetic AI agent training and analytical data that is valuable for the AI ecosystem's growth.
+
+**Synthetic Data Generation:** By testing AI agents across diverse scenarios and edge cases, fireGlobe creates extensive synthetic data useful for:
+- Training AI models in crypto trading and prediction markets
+- Research and development of safer AI agents
+- Contributing to the broader AI ecosystem with high-quality synthetic data
+
+**Reward Mechanism:** We implement a reward mechanism using our native **fireGlobe coin (FGC)** which is rewarded to every tester per successful test. This incentivizes safer AI agent development while contributing synthetic AI agent data to the ecosystem, promoting data creation, utilization, monetization, and sharing among agents.
+
+- [View FGC in 1MB.io (click here)](https://1mb.io/view-coin/0x3d2f760c3bb59bc74b6be357e3c20aad708a9667)
+- [DataDAO Contract (click here)](https://sepolia.etherscan.io/address/0x3d2f760c3bb59bc74b6be357e3c20aad708a9667)
+- [Example Reward TX Link (click here)](https://sepolia.etherscan.io/tx/0xabc8f6350d18c7e5b6154c6053c7ff62a6123bccc82762ef0c327cd54bb786f6)
+- [Sample KG Data in lighthouse.storage (click here)](https://gateway.lighthouse.storage/ipfs/QmYxY1fM9GzgGPUDmJJz3LCzQcRDo5qJmjdm3gmiyRyc3H)
+- [Sample metrics Data in lighthouse.storage (click here)](https://gateway.lighthouse.storage/ipfs/QmW8GJhb1LscVDVG5xsun4hLfU19wwsEgpM1b7CjRq8NwG)
+
+**Codebase Reference:**
+- **Database + Rewards Server:** [@db-server/](SDK/backend/db-server/) - Node.js service handling storage and Lighthouse IPFS uploads and FGC datacoin minting for the tester
 
 
 ## 🔄 Complete Data Flow & FGC Rewards Process
