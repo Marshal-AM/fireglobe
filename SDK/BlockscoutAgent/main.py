@@ -82,7 +82,6 @@ class AnalysisRetrievalResponse(Model):
     transaction_hash: str
     conversation_id: Optional[str] = None
     analysis: Optional[str] = None
-    raw_data: Optional[Dict[str, Any]] = None
     timestamp: Optional[str] = None
     message: Optional[str] = None
 
@@ -104,7 +103,6 @@ class TransactionAnalysisResponse(Model):
     conversation_id: str
     transaction_hash: str
     analysis: str
-    raw_data: Optional[Dict[str, Any]] = None
     timestamp: str
 
 
@@ -201,7 +199,7 @@ class BlockScoutMCPClient:
         logger.info(f"MCP: Request payload: {json.dumps(payload, indent=2)}")
         
         try:
-            async with httpx.AsyncClient(timeout=6000.0) as client:
+            async with httpx.AsyncClient(timeout=60.0) as client:
                 # CRITICAL: Must accept BOTH content types
                 logger.info(f"MCP: Sending POST request to {self.mcp_url}")
                 response = await client.post(
@@ -547,13 +545,12 @@ class BlockscoutAgent:
                 analysis_data = {
                     "conversation_id": msg.conversation_id,
                     "analysis": analysis,
-                    "raw_data": tx_data,
                     "timestamp": datetime.utcnow().isoformat(),
                     "success": True
                 }
                 self.transaction_analyses[msg.transaction_hash] = analysis_data
                 ctx.logger.info(f"A2A: Stored analysis in memory for tx: {msg.transaction_hash}")
-                ctx.logger.info(f"A2A: Analysis data stored (with raw_data)")
+                ctx.logger.info(f"A2A: Analysis data stored: {analysis_data}")
                 ctx.logger.info(f"A2A: Current transaction_analyses keys after storing: {list(self.transaction_analyses.keys())}")
                 ctx.logger.info(f"A2A: Total stored analyses after storing: {len(self.transaction_analyses)}")
                 
@@ -563,7 +560,6 @@ class BlockscoutAgent:
                     conversation_id=msg.conversation_id,
                     transaction_hash=msg.transaction_hash,
                     analysis=analysis,
-                    raw_data=tx_data,
                     timestamp=datetime.utcnow().isoformat()
                 )
                 
@@ -594,7 +590,6 @@ class BlockscoutAgent:
                     conversation_id=msg.conversation_id,
                     transaction_hash=msg.transaction_hash,
                     analysis=f"Analysis failed: {str(e)}",
-                    raw_data=None,
                     timestamp=datetime.utcnow().isoformat()
                 )
                 
@@ -780,14 +775,12 @@ class BlockscoutAgent:
                 ctx.logger.info(f"Analysis success: {analysis_data.get('success', 'unknown')}")
                 ctx.logger.info(f"Analysis timestamp: {analysis_data.get('timestamp', 'unknown')}")
                 ctx.logger.info(f"Analysis length: {len(analysis_data.get('analysis', ''))}")
-                ctx.logger.info(f"Has raw_data: {analysis_data.get('raw_data') is not None}")
                 
                 return AnalysisRetrievalResponse(
                     success=True,
                     transaction_hash=tx_hash,
                     conversation_id=analysis_data["conversation_id"],
                     analysis=analysis_data["analysis"],
-                    raw_data=analysis_data.get("raw_data", None),
                     timestamp=analysis_data["timestamp"]
                 )
             else:
