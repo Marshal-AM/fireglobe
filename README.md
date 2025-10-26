@@ -66,18 +66,18 @@ Both the comprehensive Knowledge Graph and the generated performance metrics are
 
 The Artificial Superintelligence Alliance (ASI) is fundamental to fireGlobe's architecture, enabling sophisticated AI-powered testing capabilities:
 
-**Agent Personas Generation:** The ASI:One model generates diverse AI personas that simulate realistic user behaviors and edge cases. These personas interact with your agent, testing various scenarios that traditional evaluation methods might miss.
+**Agent Personas Generation:** The ASI:One model generates diverse AI personas that simulate realistic user behaviors and edge cases. These personas interact with your agent, testing various scenarios that traditional evaluation methods ALWAYS miss.
 
 **BlockScout Agent:** An ASI-powered agent analyzes transaction data retrieved from BlockScout, providing detailed insights into transaction quality, gas efficiency, and potential vulnerabilities.
 
 **Metrics Generation:** ASI facilitates the generation of comprehensive performance metrics, analyzing conversation patterns, transaction success rates, and identifying areas for improvement.
 
-**MeTTa Knowledge Graph:** ASI contributes to the development of a knowledge graph that enhances contextual understanding of agent interactions and performance patterns.
+**MeTTa Knowledge Graph:** We use hyperon for the development of a knowledge graph that enhances contextual understanding of agent interactions and performance patterns.
 
-**Codebase References:**
-- **Backend:** [@backend/](SDK/backend/) - the uAgents service handling personality generation and conversation evaluation
+**For DETAILED docs and Codebase References check:**
+- **Backend:** [@backend/](SDK/backend/) - the uAgents service handling personality generation and conversation handling with evaluation powered by ASI:ONE
 - **BlockScout Agent:** [@BlockscoutAgent/](SDK/BlockscoutAgent/) - ASI-powered agent for transaction analysis using BlockScout MCP
-- **Metrics Generation:** [@metricsgen/](SDK/metricsgen/) - Python service for comprehensive performance analysis and metrics generation
+- **Metrics Generation:** [@metricsgen/](SDK/metricsgen/) - ASI Agent for comprehensive performance analysis and metrics generation
 
 ## How BlockScout is Used
 
