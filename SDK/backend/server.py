@@ -810,7 +810,7 @@ TASK: Generate {num_personalities} different personality types that will test th
 CRITICAL REQUIREMENTS:
 1. Generate exactly {num_personalities} personalities
 2. Each personality MUST make EXACTLY ONE tool call - NO MORE, NO LESS
-3. The FIRST personality MUST be a trading knowledge seeker who asks about current prices, trading tactics, market analysis, and trading strategies and initiate transfer
+3. The FIRST personality MUST be a trading knowledge seeker who asks about current prices, trading tactics, market analysis, and trading strategies
 4. Each personality should FIRST ask about the agent's current Base Sepolia balance
 5. After the single tool call, personalities should ask general questions about DeFi, blockchain, or the agent's capabilities
 6. Focus on Base Sepolia testnet operations only
@@ -821,7 +821,6 @@ CRITICAL REQUIREMENTS:
 
 EXAMPLES OF GOOD BASE SEPOLIA TESTING PERSONALITIES:
 - "Trading Knowledge Seeker" - FIRST personality that asks about current crypto prices, trading strategies, market analysis, and best trading tactics (1 tool call), then discusses trading concepts
-- "Transfer Initiator" - FIRST personality that immediately asks for a transfer to 0x2514844f312c02ae3c9d4feb40db4ec8830b6844 (1 tool call), then asks general DeFi questions
 - "Budget-Conscious DeFi User" - Asks about balance first, suggests ONE swap within budget (1 tool call), then discusses DeFi strategies
 - "Testnet Experimenter" - Wants to try ONE DeFi feature with existing testnet funds (1 tool call), then asks about other DeFi concepts
 - "Yield Seeker" - Looks for ONE staking/farming opportunity with current balance (1 tool call), then discusses yield farming strategies
@@ -1588,11 +1587,11 @@ async def handle_fetch_raw_data(ctx: Context, req: FetchRawDataRequest) -> Fetch
 
 @agent.on_rest_get("/rest/kg/last-entry", KGLastEntryResponse)
 async def handle_kg_last_entry(ctx: Context) -> KGLastEntryResponse:
-    """Get the last inserted entry from the Knowledge Graph with complete transaction analysis data"""
-    ctx.logger.info("[LAST-ENTRY] Retrieving last inserted entry with transaction analysis")
+    """Get ALL conversations and transactions from the most recent test run with complete transaction analysis data"""
+    ctx.logger.info("[LAST-ENTRY] Retrieving ALL conversations and transactions from most recent test run")
     
     try:
-        # Get all conversations and transactions, then find the most recent
+        # Get all conversations and transactions
         ctx.logger.info("[LAST-ENTRY] Fetching all conversations...")
         conversations = conversation_kg.get_all_conversations()
         ctx.logger.info(f"[LAST-ENTRY] Found {len(conversations)} conversations")
@@ -1601,10 +1600,6 @@ async def handle_kg_last_entry(ctx: Context) -> KGLastEntryResponse:
         transactions = conversation_kg.get_all_transactions()
         ctx.logger.info(f"[LAST-ENTRY] Found {len(transactions)} transactions")
         
-        # Debug: Log transaction details
-        for i, tx in enumerate(transactions):
-            ctx.logger.info(f"[LAST-ENTRY] Transaction {i}: {tx.get('transaction_hash', 'unknown')} - raw_data: {tx.get('raw_data') is not None}")
-        
         # Auto-fetch raw data for transactions that don't have it
         await auto_fetch_missing_raw_data(ctx, transactions)
         
@@ -1612,76 +1607,7 @@ async def handle_kg_last_entry(ctx: Context) -> KGLastEntryResponse:
         transactions = conversation_kg.get_all_transactions()
         ctx.logger.info(f"[LAST-ENTRY] After auto-fetch, found {len(transactions)} transactions")
         
-        # Find the most recent entry by timestamp
-        last_conversation = None
-        last_transaction = None
-        
-        if conversations:
-            # Sort conversations by timestamp (assuming they have timestamp field)
-            conversations_with_timestamps = []
-            for conv in conversations:
-                if 'timestamp' in conv:
-                    conversations_with_timestamps.append(conv)
-            
-            if conversations_with_timestamps:
-                last_conversation = max(conversations_with_timestamps, 
-                                     key=lambda x: x.get('timestamp', ''))
-        
-        if transactions:
-            # Sort transactions by timestamp
-            transactions_with_timestamps = []
-            for tx in transactions:
-                if 'timestamp' in tx:
-                    transactions_with_timestamps.append(tx)
-            
-            if transactions_with_timestamps:
-                last_transaction = max(transactions_with_timestamps, 
-                                    key=lambda x: x.get('timestamp', ''))
-        
-        # Determine which is more recent and enhance the response
-        if last_conversation and last_transaction:
-            conv_time = last_conversation.get('timestamp', '')
-            tx_time = last_transaction.get('timestamp', '')
-            
-            if conv_time > tx_time:
-                # Last entry is a conversation - enhance it with transaction data
-                enhanced_conversation = enhance_conversation_with_transactions(last_conversation, transactions)
-                return KGLastEntryResponse(
-                    success=True,
-                    entry_type="conversation",
-                    entry=enhanced_conversation,
-                    timestamp=conv_time,
-                    message="Last inserted entry is a conversation with transaction analysis"
-                )
-            else:
-                # Last entry is a transaction - return it as is
-                return KGLastEntryResponse(
-                    success=True,
-                    entry_type="transaction",
-                    entry=last_transaction,
-                    timestamp=tx_time,
-                    message="Last inserted entry is a transaction analysis"
-                )
-        elif last_conversation:
-            # Only conversations exist - enhance with transaction data
-            enhanced_conversation = enhance_conversation_with_transactions(last_conversation, transactions)
-            return KGLastEntryResponse(
-                success=True,
-                entry_type="conversation",
-                entry=enhanced_conversation,
-                timestamp=last_conversation.get('timestamp', ''),
-                message="Last inserted entry is a conversation with transaction analysis"
-            )
-        elif last_transaction:
-            # Only transactions exist
-            return KGLastEntryResponse(
-                success=True,
-                entry_type="transaction",
-                entry=last_transaction,
-                timestamp=last_transaction.get('timestamp', ''),
-                message="Last inserted entry is a transaction analysis"
-            )
-        else:
+        if not conversations and not transactions:
             return KGLastEntryResponse(
                 success=False,
                 entry_type="none",
@@ -1689,15 +1615,47 @@ async def handle_kg_last_entry(ctx: Context) -> KGLastEntryResponse:
                 timestamp=None,
                 message="No entries found in Knowledge Graph"
             )
+        
+        # Group conversations by personality and enhance with transaction data
+        enhanced_conversations = []
+        for conv in conversations:
+            enhanced_conv = enhance_conversation_with_transactions(conv, transactions)
+            enhanced_conversations.append(enhanced_conv)
+        
+        # Sort conversations by timestamp to get the most recent test run
+        enhanced_conversations.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        
+        # Get the most recent timestamp
+        most_recent_timestamp = ""
+        if enhanced_conversations:
+            most_recent_timestamp = enhanced_conversations[0].get('timestamp', '')
+        
+        # Create a comprehensive response with ALL conversations and transactions
+        comprehensive_entry = {
+            "conversations": enhanced_conversations,
+            "transactions": transactions,
+            "total_conversations": len(enhanced_conversations),
+            "total_transactions": len(transactions),
+            "personalities": list(set(conv.get('personality_name', '') for conv in enhanced_conversations if conv.get('personality_name'))),
+            "test_run_timestamp": most_recent_timestamp
+        }
+        
+        return KGLastEntryResponse(
+            success=True,
+            entry_type="comprehensive_test_run",
+            entry=comprehensive_entry,
+            timestamp=most_recent_timestamp,
+            message=f"Retrieved comprehensive test run data with {len(enhanced_conversations)} conversations from {len(set(conv.get('personality_name', '') for conv in enhanced_conversations if conv.get('personality_name')))} personalities and {len(transactions)} transactions"
+        )
     
     except Exception as e:
-        ctx.logger.error(f"Failed to get last entry: {str(e)}")
+        ctx.logger.error(f"Failed to get comprehensive test run data: {str(e)}")
         return KGLastEntryResponse(
             success=False,
             entry_type="error",
             entry=None,
             timestamp=None,
-            message=f"Error retrieving last entry: {str(e)}"
+            message=f"Error retrieving comprehensive test run data: {str(e)}"
         )
 
 
