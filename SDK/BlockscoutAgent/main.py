@@ -201,7 +201,7 @@ class BlockScoutMCPClient:
         logger.info(f"MCP: Request payload: {json.dumps(payload, indent=2)}")
         
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=6000.0) as client:
                 # CRITICAL: Must accept BOTH content types
                 logger.info(f"MCP: Sending POST request to {self.mcp_url}")
                 response = await client.post(
