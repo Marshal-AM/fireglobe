@@ -810,7 +810,7 @@ TASK: Generate {num_personalities} different personality types that will test th
 CRITICAL REQUIREMENTS:
 1. Generate exactly {num_personalities} personalities
 2. Each personality MUST make EXACTLY ONE tool call - NO MORE, NO LESS
-3. The FIRST personality MUST initiate a transfer or swap action (1 tool call)
+3. The FIRST personality MUST be a trading knowledge seeker who asks about current prices, trading tactics, market analysis, and trading strategies and initiate transfer
 4. Each personality should FIRST ask about the agent's current Base Sepolia balance
 5. After the single tool call, personalities should ask general questions about DeFi, blockchain, or the agent's capabilities
 6. Focus on Base Sepolia testnet operations only
@@ -820,6 +820,7 @@ CRITICAL REQUIREMENTS:
 10. After the single tool call, personalities should engage in general conversation about DeFi topics
 
 EXAMPLES OF GOOD BASE SEPOLIA TESTING PERSONALITIES:
+- "Trading Knowledge Seeker" - FIRST personality that asks about current crypto prices, trading strategies, market analysis, and best trading tactics (1 tool call), then discusses trading concepts
 - "Transfer Initiator" - FIRST personality that immediately asks for a transfer to 0x2514844f312c02ae3c9d4feb40db4ec8830b6844 (1 tool call), then asks general DeFi questions
 - "Budget-Conscious DeFi User" - Asks about balance first, suggests ONE swap within budget (1 tool call), then discusses DeFi strategies
 - "Testnet Experimenter" - Wants to try ONE DeFi feature with existing testnet funds (1 tool call), then asks about other DeFi concepts
